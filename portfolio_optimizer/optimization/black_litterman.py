@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.optimize import minimize
 
 from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult
+from ..core.data_models import OptimizationResult, Portfolio, Asset
 
 
 class BlackLittermanOptimizer(BasePortfolioOptimizer):
@@ -35,16 +35,25 @@ class BlackLittermanOptimizer(BasePortfolioOptimizer):
         views_P: Optional[np.ndarray] = None,  # View pick matrix (k x n)
         views_Q: Optional[np.ndarray] = None,  # Expected view returns vector (k x 1)
         omega: Optional[np.ndarray] = None,    # View uncertainty matrix (k x k)
+        portfolio: Optional[Portfolio] = None,
         **kwargs: Any,
     ) -> OptimizationResult:
+        returns = self.filter_returns_for_portfolio(returns, portfolio)
         tickers = list(returns.columns)
         n = len(tickers)
+        total_drag = self.compute_total_fee_drag(portfolio)
 
         cov_df = pd.DataFrame(custom_cov, index=tickers, columns=tickers) if custom_cov is not None else returns.cov()
         cov = cov_df.values
 
-        # Market capitalization prior weights (default to equal weights if missing)
-        w_mkt = market_weights if market_weights is not None else np.full(n, 1.0 / n)
+        # Market capitalization prior weights (default to portfolio weights or equal weights)
+        if market_weights is None and portfolio is not None:
+            port_weights = portfolio.weights
+            w_mkt = np.array([port_weights.get(t, 1.0 / n) for t in tickers])
+            if np.sum(w_mkt) > 0:
+                w_mkt /= np.sum(w_mkt)
+        else:
+            w_mkt = market_weights if market_weights is not None else np.full(n, 1.0 / n)
 
         # Equilibrium prior returns: Pi = lambda * Sigma * w_mkt
         pi = self.risk_aversion * (cov @ w_mkt)
@@ -76,7 +85,7 @@ class BlackLittermanOptimizer(BasePortfolioOptimizer):
 
         # Solve for optimal weights given posterior mean and covariance
         def max_utility(w):
-            ret = np.sum(mu_bl * w) * 252 - self.fee_drag_decimal
+            ret = np.sum(mu_bl * w) * 252 - total_drag
             risk = 0.5 * self.risk_aversion * (w.T @ cov_bl @ w) * 252
             return -(ret - risk)
 
@@ -89,7 +98,7 @@ class BlackLittermanOptimizer(BasePortfolioOptimizer):
         w = w / np.sum(w)
         w_dict = dict(zip(tickers, w))
 
-        stats = self.compute_summary_stats(w, pd.Series(mu_bl / 252, index=tickers), cov_df)
+        stats = self.compute_summary_stats(w, pd.Series(mu_bl / 252, index=tickers), cov_df, fee_drag=total_drag)
         return OptimizationResult(
             method="BlackLitterman",
             weights=w_dict,
@@ -102,3 +111,46 @@ class BlackLittermanOptimizer(BasePortfolioOptimizer):
             },
             status="Optimal" if res.success else "Fallback_EqualWeight",
         )
+
+
+if __name__ == "__main__":
+    from ..core.data_models import AssetClass
+
+    np.random.seed(42)
+    dates = pd.date_range(start="2023-01-01", periods=252, freq="B")
+    mock_returns = pd.DataFrame(
+        np.random.normal(0.0005, 0.015, size=(252, 3)),
+        index=dates,
+        columns=["AAPL", "MSFT", "GOOGL"],
+    )
+
+    aapl = Asset("AAPL", AssetClass.EQUITY, "Apple Inc.")
+    msft = Asset("MSFT", AssetClass.EQUITY, "Microsoft Corp.")
+    googl = Asset("GOOGL", AssetClass.EQUITY, "Alphabet Inc.")
+    user_portfolio = Portfolio(
+        name="Tech Portfolio",
+        asset_values={aapl: 50000.0, msft: 30000.0, googl: 20000.0},
+    )
+
+    print("Testing BlackLittermanOptimizer...")
+
+    bl_opt = BlackLittermanOptimizer(tau=0.05, risk_aversion=2.5)
+    # Define custom investor view: AAPL will outperform MSFT by 5% annually (relative view)
+    P = np.array([[1, -1, 0]])
+    Q = np.array([0.05])
+
+    res = bl_opt.optimize(
+        returns=mock_returns,
+        portfolio=user_portfolio,
+        views_P=P,
+        views_Q=Q,
+    )
+
+    print(f"\nMethod: {res.method}")
+    print(f"Status: {res.status}")
+    print(f"Expected Return: {res.expected_return:.4f}")
+    print(f"Volatility: {res.volatility:.4f}")
+    print(f"Sharpe Ratio: {res.sharpe_ratio:.4f}")
+    print("Weights:", {k: round(v, 4) for k, v in res.weights.items()})
+    print("Posterior Mean Returns:", {k: round(v, 4) for k, v in res.additional_metrics["posterior_mean_returns"].items()})
+

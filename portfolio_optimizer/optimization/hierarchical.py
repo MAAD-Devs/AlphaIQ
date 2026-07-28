@@ -14,7 +14,7 @@ except ImportError:
     rp = None
 
 from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult
+from ..core.data_models import OptimizationResult, Portfolio, Asset
 
 
 class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
@@ -73,10 +73,13 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
         self,
         returns: pd.DataFrame,
         custom_cov: Optional[np.ndarray] = None,
+        portfolio: Optional[Portfolio] = None,
         **kwargs: Any,
     ) -> OptimizationResult:
+        returns = self.filter_returns_for_portfolio(returns, portfolio)
         tickers = list(returns.columns)
         n = len(tickers)
+        total_drag = self.compute_total_fee_drag(portfolio)
 
         if rp is not None and custom_cov is None:
             try:
@@ -86,7 +89,7 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
                 if w_df is not None:
                     w = w_df.values.flatten()
                     w_dict = dict(zip(tickers, w))
-                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov())
+                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
                     return OptimizationResult(
                         method=f"Hierarchical_{self.method}_Riskfolio",
                         weights=w_dict,
@@ -117,7 +120,7 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
             w[orig_i] = w_ordered[idx]
 
         w_dict = dict(zip(tickers, w))
-        stats = self.compute_summary_stats(w, returns.mean(), cov_df)
+        stats = self.compute_summary_stats(w, returns.mean(), cov_df, fee_drag=total_drag)
 
         return OptimizationResult(
             method=f"Hierarchical_{self.method}",
@@ -127,3 +130,50 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
             sharpe_ratio=stats["sharpe_ratio"],
             status="Optimal",
         )
+
+
+if __name__ == "__main__":
+    from ..core.data_models import AssetClass
+
+    np.random.seed(42)
+    dates = pd.date_range(start="2023-01-01", periods=252, freq="B")
+    mock_returns = pd.DataFrame(
+        np.random.normal(0.0005, 0.015, size=(252, 4)),
+        index=dates,
+        columns=["AAPL", "MSFT", "BND", "GLD"],
+    )
+
+    aapl = Asset("AAPL", AssetClass.EQUITY, "Apple Inc.")
+    msft = Asset("MSFT", AssetClass.EQUITY, "Microsoft Corp.")
+    bnd = Asset("BND", AssetClass.BOND, "Vanguard Total Bond Market ETF")
+    gld = Asset("GLD", AssetClass.ETF, "SPDR Gold Shares")
+
+    user_portfolio = Portfolio(
+        name="Multi-Asset Portfolio",
+        asset_values={aapl: 30000.0, msft: 30000.0, bnd: 20000.0, gld: 20000.0},
+    )
+
+    print("Testing HierarchicalRiskParityOptimizer...")
+
+    # Test HRP
+    hrp_opt = HierarchicalRiskParityOptimizer(method="HRP", risk_free_rate=0.04)
+    res_hrp = hrp_opt.optimize(mock_returns, portfolio=user_portfolio)
+    print("\n--- Hierarchical Risk Parity (HRP) ---")
+    print(f"Method: {res_hrp.method}")
+    print(f"Status: {res_hrp.status}")
+    print(f"Expected Return: {res_hrp.expected_return:.4f}")
+    print(f"Volatility: {res_hrp.volatility:.4f}")
+    print(f"Sharpe Ratio: {res_hrp.sharpe_ratio:.4f}")
+    print("Weights:", {k: round(v, 4) for k, v in res_hrp.weights.items()})
+
+    # Test HERC
+    herc_opt = HierarchicalRiskParityOptimizer(method="HERC", risk_free_rate=0.04)
+    res_herc = herc_opt.optimize(mock_returns, portfolio=user_portfolio)
+    print("\n--- Hierarchical Equal Risk Contribution (HERC) ---")
+    print(f"Method: {res_herc.method}")
+    print(f"Status: {res_herc.status}")
+    print(f"Expected Return: {res_herc.expected_return:.4f}")
+    print(f"Volatility: {res_herc.volatility:.4f}")
+    print(f"Sharpe Ratio: {res_herc.sharpe_ratio:.4f}")
+    print("Weights:", {k: round(v, 4) for k, v in res_herc.weights.items()})
+

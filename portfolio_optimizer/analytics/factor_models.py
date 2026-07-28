@@ -71,7 +71,7 @@ class MarcenkoPasturDenoiser:
     Applies Marcenko-Pastur theorem to denoise sample covariance matrices by removing noise eigenvalues.
     """
 
-    @staticmethod,
+    @staticmethod
     def fit_marcenko_pastur(
         var: float, q: float, pts: int = 1000
     ) -> Tuple[float, float, np.ndarray, np.ndarray]:

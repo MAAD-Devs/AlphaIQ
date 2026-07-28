@@ -3,6 +3,7 @@ Core system foundation and domain data models.
 """
 
 from .data_models import (
+    AssetClass,
     AssetType,
     Asset,
     Portfolio,
@@ -11,6 +12,7 @@ from .data_models import (
 )
 
 __all__ = [
+    "AssetClass",
     "AssetType",
     "Asset",
     "Portfolio",

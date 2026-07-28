@@ -5,6 +5,7 @@ Constraint builder and manager: Linear constraints, sector caps, Beta caps, and 
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
+from ..core.data_models import Portfolio, Asset, AssetClass
 
 
 class PortfolioConstraints:
@@ -49,6 +50,16 @@ class PortfolioConstraints:
             })
         return constraints
 
+    def build_sector_constraints_from_portfolio(
+        self, portfolio: Portfolio
+    ) -> List[Dict[str, Any]]:
+        """
+        Generates sector constraints directly from a Portfolio object's asset classes.
+        """
+        tickers = portfolio.tickers
+        asset_sectors = {asset.ticker: asset.asset_class.value for asset in portfolio.asset_values}
+        return self.build_sector_constraints(tickers, asset_sectors)
+
     def build_beta_constraint(
         self, tickers: List[str], asset_betas: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
@@ -65,12 +76,51 @@ class PortfolioConstraints:
             'fun': lambda w, b=beta_vec, cap=self.max_beta: cap - np.sum(w * b)
         }
 
-    def apply_fee_drag(self, expected_returns: pd.Series, turnover: Optional[float] = None) -> pd.Series:
+    def apply_fee_drag(self, expected_returns: pd.Series, turnover: Optional[float] = None, portfolio: Optional[Portfolio] = None) -> pd.Series:
         """
-        Adjusts expected returns series by subtracting fee drag basis points and turnover cost.
+        Adjusts expected returns series by subtracting fee drag basis points, asset annual drag, and turnover cost.
         """
         fee_drag_decimal = self.fee_drag_bps / 10000.0
+        if portfolio is not None:
+            fee_drag_decimal += portfolio.account_drag
+            weights = portfolio.weights
+            for asset in portfolio.asset_values:
+                fee_drag_decimal += weights.get(asset.ticker, 0.0) * asset.annual_drag
+
         adjusted_returns = expected_returns - fee_drag_decimal
         if turnover is not None:
-            adjusted_returns -= (turnover * fee_drag_decimal)
+            adjusted_returns -= (turnover * (self.fee_drag_bps / 10000.0))
         return adjusted_returns
+
+
+if __name__ == "__main__":
+    print("Testing PortfolioConstraints...")
+
+    aapl = Asset("AAPL", AssetClass.EQUITY, "Apple Inc.", annual_drag=0.0)
+    bnd = Asset("BND", AssetClass.BOND, "Vanguard Total Bond Market ETF", annual_drag=0.0003)
+
+    user_portfolio = Portfolio(
+        name="Test Portfolio",
+        asset_values={aapl: 60000.0, bnd: 40000.0},
+        account_drag=0.001,
+    )
+
+    constraints = PortfolioConstraints(
+        asset_bounds={"AAPL": (0.1, 0.7), "BND": (0.2, 0.8)},
+        sector_caps={"Equity": 0.7, "Bond": 0.5},
+        max_beta=1.1,
+        fee_drag_bps=15.0,
+    )
+
+    tickers = user_portfolio.tickers
+    bounds = constraints.build_scipy_bounds(tickers)
+    print("SciPy Bounds:", bounds)
+
+    sector_constraints = constraints.build_sector_constraints_from_portfolio(user_portfolio)
+    print("Sector Constraints Count:", len(sector_constraints))
+
+    raw_returns = pd.Series([0.12, 0.04], index=tickers)
+    adjusted_returns = constraints.apply_fee_drag(raw_returns, portfolio=user_portfolio)
+    print("Raw Returns:\n", raw_returns.to_dict())
+    print("Adjusted Returns:\n", adjusted_returns.to_dict())
+
