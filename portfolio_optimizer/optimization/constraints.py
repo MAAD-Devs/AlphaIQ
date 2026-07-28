@@ -1,88 +1,76 @@
-"""Builder for defining and applying portfolio optimization constraints in Riskfolio-Lib."""
+"""
+Constraint builder and manager: Linear constraints, sector caps, Beta caps, and fee drag adjustments.
+"""
 
+from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
-import riskfolio as rp
-from typing import Dict, List, Optional, Tuple
 
-class ConstraintsBuilder:
-    """Helper to construct and apply linear and asset constraints to a Riskfolio Portfolio."""
-    
-    @staticmethod
-    def apply_asset_bounds(
-        port: rp.Portfolio, 
-        lower_bounds: Dict[str, float], 
-        upper_bounds: Dict[str, float]
-    ) -> None:
-        """
-        Applies individual upper and lower bounds on asset weights.
-        - lower_bounds: Dict maps ticker -> min weight
-        - upper_bounds: Dict maps ticker -> max weight
-        """
-        assets = list(port.returns.columns)
-        
-        # Build series
-        w_min = []
-        w_max = []
-        
-        for asset in assets:
-            w_min.append(lower_bounds.get(asset, 0.0))
-            w_max.append(upper_bounds.get(asset, 1.0))
-            
-        port.w_min = pd.Series(w_min, index=assets)
-        port.w_max = pd.Series(w_max, index=assets)
 
-    @staticmethod
-    def apply_linear_constraints(
-        port: rp.Portfolio,
-        constraints_list: List[Tuple[np.ndarray, float, str]]
-    ) -> None:
-        """
-        Applies a list of linear inequalities to the portfolio.
-        Each constraint is a tuple: (coefficients_array, limit_value, sense)
-        where sense is either "<=" or ">=".
-        
-        Converts inequalities into A_ineq * w <= B_ineq.
-        """
-        assets = list(port.returns.columns)
-        n_assets = len(assets)
-        
-        A_rows = []
-        B_vals = []
-        
-        for coeffs, limit, sense in constraints_list:
-            if len(coeffs) != n_assets:
-                raise ValueError(f"Constraint coefficients length {len(coeffs)} does not match number of assets {n_assets}.")
-                
-            if sense == "<=":
-                A_rows.append(coeffs)
-                B_vals.append(limit)
-            elif sense == ">=":
-                A_rows.append(-coeffs)
-                B_vals.append(-limit)
-            else:
-                raise ValueError(f"Invalid constraint sense: {sense}. Must be '<=' or '>='.")
-                
-        if A_rows:
-            A_matrix = np.vstack(A_rows)
-            B_vector = np.array(B_vals).reshape(-1, 1)
-            
-            port.ainequality = pd.DataFrame(A_matrix, columns=assets)
-            port.binequality = pd.DataFrame(B_vector)
+class PortfolioConstraints:
+    """
+    Constructs constraint matrices and parameter dicts for portfolio solvers.
+    Handles asset bounds, sector caps, Beta limits relative to benchmark, and fee drag cost adjustments.
+    """
 
-    @classmethod
-    def apply_beta_constraint(
-        cls,
-        port: rp.Portfolio,
-        asset_betas: Dict[str, float],
-        max_portfolio_beta: float
-    ) -> None:
+    def __init__(
+        self,
+        asset_bounds: Optional[Dict[str, Tuple[float, float]]] = None,
+        sector_caps: Optional[Dict[str, float]] = None,
+        max_beta: Optional[float] = None,
+        fee_drag_bps: float = 10.0,
+    ):
+        self.asset_bounds = asset_bounds or {}
+        self.sector_caps = sector_caps or {}
+        self.max_beta = max_beta
+        self.fee_drag_bps = fee_drag_bps
+
+    def build_scipy_bounds(self, tickers: List[str], default_min: float = 0.0, default_max: float = 1.0) -> Tuple[Tuple[float, float], ...]:
+        """Generates SciPy solver bounds tuple for each ticker."""
+        bounds = []
+        for ticker in tickers:
+            b = self.asset_bounds.get(ticker, (default_min, default_max))
+            bounds.append(b)
+        return tuple(bounds)
+
+    def build_sector_constraints(
+        self, tickers: List[str], asset_sectors: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
         """
-        Applies a constraint to limit the weighted average beta of the portfolio:
-        Sum( w_i * beta_i ) <= max_portfolio_beta
+        Generates linear inequality constraints for sector allocation caps.
+        Sum(w_i for i in sector) <= cap
         """
-        assets = list(port.returns.columns)
-        betas = np.array([asset_betas.get(asset, 0.0) for asset in assets])
-        
-        # Apply as linear constraint: betas^T * w <= max_portfolio_beta
-        cls.apply_linear_constraints(port, [(betas, max_portfolio_beta, "<=")])
+        constraints = []
+        for sector, cap in self.sector_caps.items():
+            mask = np.array([1.0 if asset_sectors.get(t) == sector else 0.0 for t in tickers])
+            constraints.append({
+                'type': 'ineq',
+                'fun': lambda w, m=mask, c=cap: c - np.sum(w * m)
+            })
+        return constraints
+
+    def build_beta_constraint(
+        self, tickers: List[str], asset_betas: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Generates linear inequality constraint for overall portfolio Beta cap vs benchmark.
+        Sum(w_i * Beta_i) <= max_beta
+        """
+        if self.max_beta is None:
+            return None
+
+        beta_vec = np.array([asset_betas.get(t, 1.0) for t in tickers])
+        return {
+            'type': 'ineq',
+            'fun': lambda w, b=beta_vec, cap=self.max_beta: cap - np.sum(w * b)
+        }
+
+    def apply_fee_drag(self, expected_returns: pd.Series, turnover: Optional[float] = None) -> pd.Series:
+        """
+        Adjusts expected returns series by subtracting fee drag basis points and turnover cost.
+        """
+        fee_drag_decimal = self.fee_drag_bps / 10000.0
+        adjusted_returns = expected_returns - fee_drag_decimal
+        if turnover is not None:
+            adjusted_returns -= (turnover * fee_drag_decimal)
+        return adjusted_returns

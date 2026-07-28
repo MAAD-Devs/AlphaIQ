@@ -1,94 +1,136 @@
-"""Traditional risk-adjusted performance metrics (Sharpe, Sortino, Treynor, Information Ratio)."""
+"""
+Specialized risk ratio analytics: Sharpe, Sortino, Treynor, and Information Ratios.
+"""
 
-import pandas as pd
+from typing import Dict, Union, Optional
 import numpy as np
-from typing import Union, Optional
+import pandas as pd
 
-def calculate_sharpe_ratio(
-    returns: Union[pd.Series, np.ndarray], 
-    risk_free_rate: float = 0.0, 
-    periods_per_year: int = 252
-) -> float:
-    """
-    Calculates the annualized Sharpe Ratio.
-    Sharpe Ratio = (Mean(R_p) - R_f_daily) / Std(R_p) * sqrt(periods_per_year)
-    """
-    # Annualized rates to daily/period rates
-    rf_daily = risk_free_rate / periods_per_year
-    
-    excess_returns = returns - rf_daily
-    mean_excess = np.mean(excess_returns)
-    std_returns = np.std(returns, ddof=1)
-    
-    if std_returns == 0.0:
-        return 0.0
-        
-    daily_sharpe = mean_excess / std_returns
-    return float(daily_sharpe * np.sqrt(periods_per_year))
 
-def calculate_sortino_ratio(
+def SharpeRatio(
     returns: Union[pd.Series, np.ndarray],
-    risk_free_rate: float = 0.0,
-    mar: float = 0.0,
-    periods_per_year: int = 252
+    risk_free_rate: float = 0.04,
+    annualization_factor: int = 252,
 ) -> float:
     """
-    Calculates the annualized Sortino Ratio.
-    Sortino Ratio = (Mean(R_p) - R_f_daily) / DownsideDeviation * sqrt(periods_per_year)
-    DownsideDeviation is the root mean square of negative deviations below MAR.
+    Computes annualized Sharpe Ratio.
+    Sharpe = (E[R] - R_f) / std(R)
     """
-    rf_daily = risk_free_rate / periods_per_year
-    mar_daily = mar / periods_per_year
-    
-    excess_returns = returns - rf_daily
+    returns_arr = np.asarray(returns)
+    if len(returns_arr) == 0:
+        return 0.0
+
+    rf_daily = (1 + risk_free_rate) ** (1 / annualization_factor) - 1
+    excess_returns = returns_arr - rf_daily
+    std = np.std(excess_returns, ddof=1)
+    if std == 0 or np.isnan(std):
+        return 0.0
+
     mean_excess = np.mean(excess_returns)
-    
-    # Calculate downside deviation
-    downside_diff = returns - mar_daily
-    negative_diff = np.minimum(0, downside_diff)
-    downside_variance = np.mean(negative_diff ** 2)
-    downside_std = np.sqrt(downside_variance)
-    
-    if downside_std == 0.0:
-        return 0.0
-        
-    daily_sortino = mean_excess / downside_std
-    return float(daily_sortino * np.sqrt(periods_per_year))
+    return float((mean_excess / std) * np.sqrt(annualization_factor))
 
-def calculate_treynor_ratio(
+
+def SortinoRatio(
     returns: Union[pd.Series, np.ndarray],
-    beta: float,
-    risk_free_rate: float = 0.0,
-    periods_per_year: int = 252
+    risk_free_rate: float = 0.04,
+    target_return: float = 0.0,
+    annualization_factor: int = 252,
 ) -> float:
     """
-    Calculates the annualized Treynor Ratio.
-    Treynor Ratio = (Annualized_Return - R_f) / Beta
+    Computes annualized Sortino Ratio considering downside volatility.
+    Sortino = (E[R] - R_f) / downside_std
     """
-    if beta == 0.0:
+    returns_arr = np.asarray(returns)
+    if len(returns_arr) == 0:
         return 0.0
-        
-    mean_return = np.mean(returns) * periods_per_year
-    return float((mean_return - risk_free_rate) / beta)
 
-def calculate_information_ratio(
+    rf_daily = (1 + risk_free_rate) ** (1 / annualization_factor) - 1
+    target_daily = (1 + target_return) ** (1 / annualization_factor) - 1
+
+    downside_diff = np.minimum(0, returns_arr - target_daily)
+    downside_std = np.sqrt(np.mean(downside_diff**2))
+
+    if downside_std == 0 or np.isnan(downside_std):
+        return 0.0
+
+    mean_excess = np.mean(returns_arr - rf_daily)
+    return float((mean_excess / downside_std) * np.sqrt(annualization_factor))
+
+
+def TreynorRatio(
     returns: Union[pd.Series, np.ndarray],
     benchmark_returns: Union[pd.Series, np.ndarray],
-    periods_per_year: int = 252
+    risk_free_rate: float = 0.04,
+    annualization_factor: int = 252,
 ) -> float:
     """
-    Calculates the Information Ratio.
-    Information Ratio = Mean(returns - benchmark_returns) / Std(returns - benchmark_returns) * sqrt(periods_per_year)
+    Computes annualized Treynor Ratio.
+    Treynor = (E[R] - R_f) / Beta
     """
-    if len(returns) != len(benchmark_returns):
-        raise ValueError("Returns and benchmark returns must have the same length.")
-        
-    active_returns = returns - benchmark_returns
-    mean_active = np.mean(active_returns)
-    tracking_error = np.std(active_returns, ddof=1)
-    
-    if tracking_error == 0.0:
+    r_arr = np.asarray(returns)
+    b_arr = np.asarray(benchmark_returns)
+
+    if len(r_arr) == 0 or len(r_arr) != len(b_arr):
         return 0.0
-        
-    daily_ir = mean_active / tracking_error
-    return float(daily_ir * np.sqrt(periods_per_year))
+
+    cov_matrix = np.cov(r_arr, b_arr)
+    cov = cov_matrix[0, 1]
+    var_b = cov_matrix[1, 1]
+
+    if var_b == 0 or np.isnan(var_b):
+        return 0.0
+
+    beta = cov / var_b
+    if beta == 0 or np.isnan(beta):
+        return 0.0
+
+    rf_daily = (1 + risk_free_rate) ** (1 / annualization_factor) - 1
+    mean_excess_annual = np.mean(r_arr - rf_daily) * annualization_factor
+
+    return float(mean_excess_annual / beta)
+
+
+def InformationRatio(
+    returns: Union[pd.Series, np.ndarray],
+    benchmark_returns: Union[pd.Series, np.ndarray],
+    annualization_factor: int = 252,
+) -> float:
+    """
+    Computes annualized Information Ratio.
+    IR = (E[R] - E[R_b]) / Tracking_Error
+    """
+    r_arr = np.asarray(returns)
+    b_arr = np.asarray(benchmark_returns)
+
+    if len(r_arr) == 0 or len(r_arr) != len(b_arr):
+        return 0.0
+
+    diff = r_arr - b_arr
+    tracking_error = np.std(diff, ddof=1)
+
+    if tracking_error == 0 or np.isnan(tracking_error):
+        return 0.0
+
+    mean_diff = np.mean(diff)
+    return float((mean_diff / tracking_error) * np.sqrt(annualization_factor))
+
+
+def compute_all_risk_metrics(
+    returns: Union[pd.Series, np.ndarray],
+    benchmark_returns: Optional[Union[pd.Series, np.ndarray]] = None,
+    risk_free_rate: float = 0.04,
+    annualization_factor: int = 252,
+) -> Dict[str, float]:
+    """
+    Helper function to calculate all risk-adjusted return ratios in one call.
+    """
+    metrics = {
+        "sharpe_ratio": SharpeRatio(returns, risk_free_rate, annualization_factor),
+        "sortino_ratio": SortinoRatio(returns, risk_free_rate, 0.0, annualization_factor),
+    }
+
+    if benchmark_returns is not None:
+        metrics["treynor_ratio"] = TreynorRatio(returns, benchmark_returns, risk_free_rate, annualization_factor)
+        metrics["information_ratio"] = InformationRatio(returns, benchmark_returns, annualization_factor)
+
+    return metrics

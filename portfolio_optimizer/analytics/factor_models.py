@@ -1,100 +1,123 @@
-"""Factor exposure analysis (Fama-French Five-Factor regression) and Marcenko-Pastur correlation filtering."""
+"""
+Fama-French 5-Factor regression engine and Marcenko-Pastur random matrix covariance denoising.
+"""
 
+from typing import Dict, Tuple, Optional, Union
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from typing import Dict, Any, Tuple
 
-def run_fama_french_regression(
-    asset_returns: pd.Series, 
-    factor_returns: pd.DataFrame
-) -> Dict[str, Any]:
+
+class FamaFrench5Factor:
     """
-    Regresses asset returns against Fama-French 5 Factors (Mkt-RF, SMB, HML, RMW, CMA).
-    Returns a dictionary of coefficients (exposures), t-stats, R-squared, and Alpha.
+    Fits Fama-French 5-Factor model (Mkt-RF, SMB, HML, RMW, CMA) using OLS regression.
     """
-    # Aligned data
-    combined = pd.concat([asset_returns, factor_returns], axis=1).dropna()
-    if len(combined) < 20:
-        # Fallback dummy coefficients if data is too sparse
+
+    def __init__(self, factor_data: Optional[pd.DataFrame] = None):
+        self.factor_data = factor_data
+
+    def _generate_synthetic_factors(self, dates: pd.DatetimeIndex) -> pd.DataFrame:
+        """Generates synthetic factor series if official factor data is not supplied."""
+        np.random.seed(42)
+        n = len(dates)
+        df = pd.DataFrame(
+            {
+                "Mkt-RF": np.random.normal(0.0004, 0.01, n),
+                "SMB": np.random.normal(0.0001, 0.005, n),
+                "HML": np.random.normal(0.0001, 0.006, n),
+                "RMW": np.random.normal(0.0002, 0.004, n),
+                "CMA": np.random.normal(0.0001, 0.004, n),
+                "RF": np.full(n, 0.04 / 252),
+            },
+            index=dates,
+        )
+        return df
+
+    def fit(
+        self, asset_returns: pd.Series, factors: Optional[pd.DataFrame] = None
+    ) -> Dict[str, Union[float, Dict[str, float]]]:
+        """
+        Regresses asset returns against Fama-French 5 factors.
+        """
+        if factors is None:
+            if self.factor_data is not None:
+                factors = self.factor_data
+            else:
+                factors = self._generate_synthetic_factors(asset_returns.index)
+
+        # Align indices
+        common_idx = asset_returns.index.intersection(factors.index)
+        y = asset_returns.loc[common_idx] - factors.loc[common_idx, "RF"]
+        X = factors.loc[common_idx, ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]]
+        X = sm.add_constant(X)
+
+        model = sm.OLS(y, X).fit()
+
+        betas = model.params.to_dict()
+        pvalues = model.pvalues.to_dict()
+
         return {
-            "Alpha": 0.0,
-            "Beta_Mkt": 1.0,
-            "Beta_SMB": 0.0,
-            "Beta_HML": 0.0,
-            "Beta_RMW": 0.0,
-            "Beta_CMA": 0.0,
-            "R2": 0.0,
-            "t_stats": {}
+            "alpha": float(betas.pop("const", 0.0)),
+            "betas": {k: float(v) for k, v in betas.items()},
+            "p_values": {k: float(v) for k, v in pvalues.items()},
+            "r_squared": float(model.rsquared),
+            "adj_r_squared": float(model.rsquared_adj),
+            "f_statistic": float(model.fvalue) if model.fvalue is not None else 0.0,
         }
-        
-    y = combined.iloc[:, 0]
-    X = combined.drop(combined.columns[0], axis=1)
-    X = sm.add_constant(X)
-    
-    model = sm.OLS(y, X).fit()
-    
-    # Map constants
-    params = model.params
-    p_values = model.pvalues
-    t_stats = model.tvalues
-    
-    return {
-        "Alpha": float(params.get("const", 0.0)),
-        "Beta_Mkt": float(params.get("Mkt-RF", params.get("Mkt", 0.0))),
-        "Beta_SMB": float(params.get("SMB", 0.0)),
-        "Beta_HML": float(params.get("HML", 0.0)),
-        "Beta_RMW": float(params.get("RMW", 0.0)),
-        "Beta_CMA": float(params.get("CMA", 0.0)),
-        "R2": float(model.rsquared),
-        "t_stats": t_stats.to_dict(),
-        "p_values": p_values.to_dict()
-    }
 
-def marcenko_pastur_filter(correlation_matrix: pd.DataFrame, t_over_n: float) -> pd.DataFrame:
+
+class MarcenkoPasturDenoiser:
     """
-    Denoises a correlation matrix using Marcenko-Pastur Random Matrix Theory.
-    - correlation_matrix: input correlation DataFrame
-    - t_over_n: aspect ratio Q = T/N where T is number of rows and N is number of columns.
+    Applies Marcenko-Pastur theorem to denoise sample covariance matrices by removing noise eigenvalues.
     """
-    if t_over_n <= 1.0:
-        # Cannot reliably denoise if N > T, return original
-        return correlation_matrix
-        
-    # Spectral decomposition
-    eigenvalues, eigenvectors = np.linalg.eigh(correlation_matrix.values)
-    
-    # Theoretical maximum eigenvalue for pure noise
-    # Max eigenvalue lambda_plus = sigma^2 * (1 + sqrt(1/Q))^2
-    # Estimate sigma^2 as the mean of eigenvalues below the theoretical threshold
-    # Since we don't know sigma upfront, we can estimate it iteratively or use a standard shortcut:
-    # sigma^2 is roughly the variance explanation of the noise cluster, which is 1 - variance explained by signal.
-    # A standard practical implementation is to estimate sigma^2 from the eigenvalues.
-    q = t_over_n
-    
-    # We find sigma^2 by fitting the eigenvalues below lambda_plus.
-    # For simplicity and robustness, we can set sigma = 1.0 (standard for correlation matrix) or estimate it.
-    # Let's use a standard approximation of sigma^2 = 1.0 - max(eigenvalues) / sum(eigenvalues) or estimate from the lower part.
-    # We will assume a baseline sigma^2 = 1.0 - (eigenvalues[-1] / len(eigenvalues))
-    sigma_sq = 1.0 - (max(eigenvalues) / sum(eigenvalues))
-    
-    lambda_plus = sigma_sq * (1.0 + np.sqrt(1.0 / q)) ** 2
-    
-    # Denoising: Replace eigenvalues below lambda_plus with their average
-    noise_indices = np.where(eigenvalues <= lambda_plus)[0]
-    if len(noise_indices) > 0:
-        avg_noise_eval = np.mean(eigenvalues[noise_indices])
-        eigenvalues_filtered = eigenvalues.copy()
-        eigenvalues_filtered[noise_indices] = avg_noise_eval
-    else:
-        eigenvalues_filtered = eigenvalues
-        
-    # Reconstruct correlation matrix
-    recon = eigenvectors @ np.diag(eigenvalues_filtered) @ eigenvectors.T
-    
-    # Normalize diagonal elements to 1.0 (to maintain correlation properties)
-    diag = np.diag(recon)
-    scaling_factor = np.sqrt(diag)
-    recon_normalized = recon / np.outer(scaling_factor, scaling_factor)
-    
-    return pd.DataFrame(recon_normalized, index=correlation_matrix.index, columns=correlation_matrix.columns)
+
+    @staticmethod,
+    def fit_marcenko_pastur(
+        var: float, q: float, pts: int = 1000
+    ) -> Tuple[float, float, np.ndarray, np.ndarray]:
+        """
+        Calculates theoretical Marcenko-Pastur distribution limits (lambda_min, lambda_max).
+        q = T / N (number of observations / number of assets)
+        """
+        e_min = var * (1 - np.sqrt(1.0 / q)) ** 2
+        e_max = var * (1 + np.sqrt(1.0 / q)) ** 2
+        e_val = np.linspace(e_min, e_max, pts)
+        pdf = q / (2 * np.pi * var * e_val) * np.sqrt((e_max - e_val) * (e_val - e_min))
+        pdf = np.nan_to_num(pdf)
+        return e_min, e_max, e_val, pdf
+
+    def denoise_covariance(
+        self, cov: np.ndarray, q: float, shrinkage: bool = True
+    ) -> np.ndarray:
+        """
+        Denoises sample covariance matrix using Spectral Shrinkage based on Marcenko-Pastur boundary.
+        """
+        # Convert covariance to correlation matrix
+        std = np.sqrt(np.diag(cov))
+        corr = cov / np.outer(std, std)
+        corr = np.nan_to_num(corr)
+
+        # Eigenvalue decomposition
+        e_val, e_vec = np.linalg.eigh(corr)
+        idx = e_val.argsort()[::-1]
+        e_val = e_val[idx]
+        e_vec = e_vec[:, idx]
+
+        # Estimate Marcenko-Pastur upper bound
+        e_min, e_max, _, _ = self.fit_marcenko_pastur(var=1.0, q=q)
+
+        # Replace noise eigenvalues with average of noise eigenvalues
+        noise_mask = e_val <= e_max
+        if np.any(noise_mask):
+            if shrinkage:
+                e_val[noise_mask] = np.mean(e_val[noise_mask])
+            else:
+                e_val[noise_mask] = 0.0
+
+        # Reconstruct clean correlation matrix
+        corr_clean = e_vec @ np.diag(e_val) @ e_vec.T
+        np.fill_diagonal(corr_clean, 1.0)
+
+        # Convert back to covariance matrix
+        cov_clean = corr_clean * np.outer(std, std)
+        return cov_clean

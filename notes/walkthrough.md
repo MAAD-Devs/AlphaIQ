@@ -63,3 +63,6 @@ ALL VERIFICATION TESTS PASSED!
 ==============================
 ```
 All assets converge and behave as expected under extreme risk parameter scenarios.
+
+When using the FRED API, it is critical to include the following: 
+"This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis."

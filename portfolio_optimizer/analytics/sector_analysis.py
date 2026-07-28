@@ -1,92 +1,91 @@
-"""Sector correlation and machine learning-based sector rotation models."""
+"""
+Machine Learning Random Forest Sector Rotator for dynamic macro & momentum sector allocation.
+"""
 
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List
+from sklearn.ensemble import RandomForestClassifier
 
-class RandomForestSectorRotator:
+
+class SectorRotatorML:
     """
-    ML-based Sector Rotator. Uses Scikit-Learn if installed; 
-    otherwise falls back to a multi-factor momentum/valuation rotation algorithm.
+    Random Forest Machine Learning model for predicting leading market sectors
+    based on macro signals (Treasury yields, inflation) and sector momentum features.
     """
-    
-    def __init__(self):
-        self.model = None
-        self.has_sklearn = False
-        try:
-            from sklearn.ensemble import RandomForestClassifier
-            self.model = RandomForestClassifier(n_estimators=100, random_state=42)
-            self.has_sklearn = True
-        except ImportError:
-            pass
 
-    def fit(self, features: pd.DataFrame, target_returns: pd.DataFrame) -> None:
-        """
-        Trains the rotation model. 
-        - features: Macro indicators (Yield Curve, CPI, PMI)
-        - target_returns: Returns of different sectors
-        """
-        if self.has_sklearn:
-            # Create a target label representing the best performing sector for each step
-            best_sector = target_returns.idxmax(axis=1)
-            # Encode target labels
-            from sklearn.preprocessing import LabelEncoder
-            self.encoder = LabelEncoder()
-            y = self.encoder.fit_transform(best_sector)
-            
-            # Align features and target
-            idx = features.index.intersection(target_returns.index)
-            X = features.loc[idx]
-            y = y[target_returns.index.get_indexer(idx)]
-            
-            self.model.fit(X, y)
-        else:
-            # Fallback heuristic: calculate historical beta-adjusted momentum
-            # No fitting required, weights are updated dynamically in predict phase.
-            pass
+    def __init__(self, n_estimators: int = 100, random_state: int = 42):
+        self.model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+        self.is_fitted = False
+        self.feature_names: List[str] = []
 
-    def predict_allocation(self, current_features: pd.DataFrame, current_prices: pd.DataFrame) -> Dict[str, float]:
+    def build_features(
+        self,
+        sector_returns: pd.DataFrame,
+        macro_series: Optional[pd.DataFrame] = None,
+        lookback_windows: List[int] = [21, 63, 126, 252],
+    ) -> Tuple[pd.DataFrame, pd.Series]:
         """
-        Predicts optimal sector weights based on current macro environment.
-        - current_features: current macroeconomic data series
-        - current_prices: recent price histories (to compute momentum)
+        Engineers momentum, volatility, and macro features for sector prediction.
+        Target label (y): Sector index with the highest 1-month forward return.
         """
-        sectors = list(current_prices.columns)
-        
-        if self.has_sklearn and self.model is not None:
-            try:
-                # Predict probability for each sector label
-                probs = self.model.predict_proba(current_features.values[-1:])
-                classes = self.encoder.inverse_transform(self.model.classes_)
-                
-                weights = {}
-                for sector in sectors:
-                    if sector in classes:
-                        idx = list(classes).index(sector)
-                        weights[sector] = float(probs[0][idx])
-                    else:
-                        weights[sector] = 0.0
-                
-                # Normalize weights
-                total = sum(weights.values())
-                if total > 0:
-                    weights = {k: v / total for k, v in weights.items()}
-                return weights
-            except Exception:
-                # Fallback to momentum if sklearn prediction fails
-                pass
+        features_list = []
 
-        # Fallback multi-factor momentum/valuation rotation algorithm:
-        # 12-month momentum (60% weight) - PE ratio inversion (40% weight)
-        returns_12m = current_prices.pct_change(252).iloc[-1].fillna(0.0)
-        
-        # Heuristic: rank returns
-        momentum_scores = returns_12m.rank(ascending=True)
-        
-        # Calculate weights based on ranking
-        raw_weights = momentum_scores.values
-        # Softmax allocation
-        exp_weights = np.exp(raw_weights / np.sum(raw_weights)) if np.sum(raw_weights) > 0 else np.ones_like(raw_weights)
-        weights = exp_weights / np.sum(exp_weights)
-        
-        return {sectors[i]: float(weights[i]) for i in range(len(sectors))}
+        for window in lookback_windows:
+            mom = sector_returns.rolling(window).mean()
+            vol = sector_returns.rolling(window).std()
+            mom.columns = [f"{col}_mom_{window}" for col in sector_returns.columns]
+            vol.columns = [f"{col}_vol_{window}" for col in sector_returns.columns]
+            features_list.extend([mom, vol])
+
+        if macro_series is not None:
+            features_list.append(macro_series)
+
+        X = pd.concat(features_list, axis=1).dropna()
+
+        # Forward 21-day returns to determine top sector
+        fwd_returns = sector_returns.shift(-21).loc[X.index]
+        y = fwd_returns.idxmax(axis=1)
+
+        valid_mask = y.notna()
+        X = X.loc[valid_mask]
+        y = y.loc[valid_mask]
+
+        self.feature_names = list(X.columns)
+        return X, y
+
+    def train(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, float]:
+        """
+        Trains the Random Forest sector rotator classifier.
+        """
+        self.model.fit(X, y)
+        self.is_fitted = True
+        accuracy = float(self.model.score(X, y))
+        return {"training_accuracy": accuracy}
+
+    def predict_sector_weights(self, current_features: pd.DataFrame) -> Dict[str, float]:
+        """
+        Predicts target sector weights based on class probabilities from the Random Forest model.
+        """
+        if not self.is_fitted:
+            # Equal weighting fallback
+            sectors = [c.replace("_mom_21", "") for c in self.feature_names if "_mom_21" in c]
+            if not sectors:
+                return {}
+            w = 1.0 / len(sectors)
+            return {s: w for s in sectors}
+
+        probs = self.model.predict_proba(current_features.iloc[[-1]])[0]
+        classes = self.model.classes_
+
+        weight_dict = {cls: float(p) for cls, p in zip(classes, probs)}
+        return weight_dict
+
+    def get_feature_importances(self) -> Dict[str, float]:
+        """
+        Returns feature importance scores from the trained model.
+        """
+        if not self.is_fitted:
+            return {}
+        importances = self.model.feature_importances_
+        return {name: float(imp) for name, imp in zip(self.feature_names, importances)}

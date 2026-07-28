@@ -1,87 +1,148 @@
-"""Fixed-income analytics including duration, convexity, breakeven inflation, and Stable Value Fund models."""
+"""
+Fixed income analytics: Duration, Convexity, TIPS Inflation Breakeven, and Svensson (SVF) Yield Curve smoothing.
+"""
 
+from typing import Dict, List, Tuple, Union, Optional
 import numpy as np
-import pandas as pd
-from typing import Dict, Any, Union
+from scipy.optimize import minimize
 
-def calculate_bond_duration_and_convexity(
-    face_value: float,
-    coupon_rate: float,
-    yield_to_maturity: float,
-    years_to_maturity: float,
-    payment_frequency: int = 2
-) -> Dict[str, float]:
-    """
-    Calculates Macaulay Duration, Modified Duration, and Convexity for a standard coupon bond.
-    - face_value: Face value of the bond (e.g. 1000)
-    - coupon_rate: Annual coupon rate (e.g. 0.05)
-    - yield_to_maturity: Annualized yield to maturity (e.g. 0.04)
-    - years_to_maturity: Time to maturity in years (e.g. 10)
-    - payment_frequency: Number of coupon payments per year (default 2 for semi-annual)
-    """
-    total_periods = int(years_to_maturity * payment_frequency)
-    period_yield = yield_to_maturity / payment_frequency
-    coupon_payment = (coupon_rate * face_value) / payment_frequency
-    
-    cash_flows = []
-    times = []
-    
-    for t in range(1, total_periods + 1):
-        cf = coupon_payment
-        if t == total_periods:
-            cf += face_value
-        cash_flows.append(cf)
-        times.append(t / payment_frequency)
-        
-    cash_flows = np.array(cash_flows)
-    times = np.array(times)
-    
-    # Present values of cash flows
-    pv_factors = 1 / (1 + period_yield) ** (times * payment_frequency)
-    pv_cash_flows = cash_flows * pv_factors
-    bond_price = np.sum(pv_cash_flows)
-    
-    if bond_price == 0:
-        return {"macaulay_duration": 0.0, "modified_duration": 0.0, "convexity": 0.0}
-        
-    # Macaulay Duration = Sum(t * PV_t) / Price
-    macaulay_duration = np.sum(times * pv_cash_flows) / bond_price
-    
-    # Modified Duration = Macaulay Duration / (1 + y/m)
-    modified_duration = macaulay_duration / (1 + period_yield)
-    
-    # Convexity = Sum( t * (t + 1/m) * PV_t ) / (Price * (1 + y/m)^2)
-    t_terms = times * (times + 1/payment_frequency)
-    convexity = np.sum(t_terms * pv_cash_flows) / (bond_price * (1 + period_yield) ** 2)
-    
-    return {
-        "bond_price": float(bond_price),
-        "macaulay_duration": float(macaulay_duration),
-        "modified_duration": float(modified_duration),
-        "convexity": float(convexity)
-    }
 
-def calculate_breakeven_inflation(nominal_yield: float, tips_yield: float) -> float:
+class BondAnalytics:
     """
-    Calculates the breakeven inflation rate.
-    Breakeven Inflation = Nominal Yield - Real (TIPS) Yield
+    Computes core fixed income parameters: Price, Macaulay Duration, Modified Duration,
+    Convexity, and TIPS Breakeven inflation rates.
     """
-    return float(nominal_yield - tips_yield)
 
-def simulate_svf_crediting_rate(
-    current_crediting_rate: float,
-    book_value: float,
-    market_value: float,
-    duration: float,
-    smoothing_factor: float = 0.15
-) -> float:
+    @staticmethod
+    def bond_price(
+        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+    ) -> float:
+        """Calculates present value of a coupon-bearing bond."""
+        periods = int(years_to_maturity * freq)
+        c = (coupon_rate * face_value) / freq
+        r = ytm / freq
+
+        if r == 0:
+            return float(c * periods + face_value)
+
+        discount_factors = (1 + r) ** -np.arange(1, periods + 1)
+        pv_coupons = np.sum(c * discount_factors)
+        pv_principal = face_value * ((1 + r) ** -periods)
+        return float(pv_coupons + pv_principal)
+
+    @staticmethod
+    def macaulay_duration(
+        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+    ) -> float:
+        """Calculates Macaulay Duration in years."""
+        price = BondAnalytics.bond_price(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        if price == 0:
+            return 0.0
+
+        periods = int(years_to_maturity * freq)
+        c = (coupon_rate * face_value) / freq
+        r = ytm / freq
+
+        t_times = np.arange(1, periods + 1) / freq
+        discount_factors = (1 + r) ** -np.arange(1, periods + 1)
+
+        cash_flows = np.full(periods, c)
+        cash_flows[-1] += face_value
+
+        weighted_pv = np.sum(t_times * cash_flows * discount_factors)
+        return float(weighted_pv / price)
+
+    @staticmethod
+    def modified_duration(
+        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+    ) -> float:
+        """Calculates Modified Duration."""
+        mac_dur = BondAnalytics.macaulay_duration(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        return float(mac_dur / (1 + (ytm / freq)))
+
+    @staticmethod
+    def convexity(
+        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+    ) -> float:
+        """Calculates Bond Convexity."""
+        price = BondAnalytics.bond_price(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        if price == 0:
+            return 0.0
+
+        periods = int(years_to_maturity * freq)
+        c = (coupon_rate * face_value) / freq
+        r = ytm / freq
+
+        t_times = np.arange(1, periods + 1) / freq
+        discount_factors = (1 + r) ** -(np.arange(1, periods + 1) + 2)
+
+        cash_flows = np.full(periods, c)
+        cash_flows[-1] += face_value
+
+        weighted_pv = np.sum(cash_flows * t_times * (t_times + 1 / freq) * discount_factors)
+        return float(weighted_pv / price)
+
+    @staticmethod
+    def tips_breakeven(nominal_yield: float, real_tips_yield: float) -> float:
+        """
+        Calculates TIPS Breakeven Inflation Rate.
+        Breakeven = (1 + Nominal) / (1 + Real) - 1
+        """
+        return float(((1 + nominal_yield) / (1 + real_tips_yield)) - 1.0)
+
+
+class SVFYieldCurve:
     """
-    Calculates the Stable Value Fund (SVF) crediting rate adjustment based on book-to-market convergence:
-    CR_new = CR_old + (MV - BV) / (BV * duration) * smoothing_factor
+    Svensson (Sven-Svensson-Nelson-Siegel) Yield Curve Fitting & Smoothing.
+    y(m) = beta0 + beta1 * ((1 - exp(-m/tau1)) / (m/tau1))
+                 + beta2 * (((1 - exp(-m/tau1)) / (m/tau1)) - exp(-m/tau1))
+                 + beta3 * (((1 - exp(-m/tau2)) / (m/tau2)) - exp(-m/tau2))
     """
-    if book_value <= 0.0 or duration <= 0.0:
-        return current_crediting_rate
-        
-    adjustment = (market_value - book_value) / (book_value * duration)
-    new_rate = current_crediting_rate + adjustment * smoothing_factor
-    return max(0.0, float(new_rate))
+
+    def __init__(
+        self,
+        beta0: float = 0.04,
+        beta1: float = -0.01,
+        beta2: float = 0.01,
+        beta3: float = 0.005,
+        tau1: float = 2.0,
+        tau2: float = 5.0,
+    ):
+        self.params = [beta0, beta1, beta2, beta3, tau1, tau2]
+
+    @staticmethod
+    def yield_svf(m: Union[float, np.ndarray], params: List[float]) -> Union[float, np.ndarray]:
+        beta0, beta1, beta2, beta3, tau1, tau2 = params
+        m = np.maximum(m, 1e-4)
+
+        term1 = (1.0 - np.exp(-m / tau1)) / (m / tau1)
+        term2 = term1 - np.exp(-m / tau1)
+        term3 = ((1.0 - np.exp(-m / tau2)) / (m / tau2)) - np.exp(-m / tau2)
+
+        return beta0 + beta1 * term1 + beta2 * term2 + beta3 * term3
+
+    def fit(self, maturities: np.ndarray, yields: np.ndarray) -> List[float]:
+        """Fits Svensson model parameters to observed market yields."""
+
+        def loss(p):
+            y_pred = self.yield_svf(maturities, p)
+            return np.sum((y_pred - yields) ** 2)
+
+        initial_guess = [0.03, -0.01, 0.01, 0.0, 1.5, 5.0]
+        bounds = [
+            (-0.1, 0.2),
+            (-0.2, 0.2),
+            (-0.2, 0.2),
+            (-0.2, 0.2),
+            (0.1, 10.0),
+            (0.1, 10.0),
+        ]
+
+        res = minimize(loss, initial_guess, bounds=bounds, method="L-BFGS-B")
+        if res.success:
+            self.params = list(res.x)
+        return self.params
+
+    def get_curve(self, maturities: np.ndarray) -> np.ndarray:
+        """Returns smooth yield curve values for given maturities."""
+        return np.asarray(self.yield_svf(maturities, self.params))

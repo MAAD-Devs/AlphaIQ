@@ -1,34 +1,30 @@
-"""Analytics subpackage exposing traditional and tail risk metrics, factor regression, and fixed income formulas."""
+"""
+Specialized financial analytics engines.
+"""
 
-from portfolio_optimizer.analytics.risk_metrics import (
-    calculate_sharpe_ratio,
-    calculate_sortino_ratio,
-    calculate_treynor_ratio,
-    calculate_information_ratio
-)
+from .risk_metrics import SharpeRatio, SortinoRatio, TreynorRatio, InformationRatio, compute_all_risk_metrics
+from .tail_risk import ValueAtRisk, ConditionalVaR, MaximumDrawdown, CalmarRatio, UlcerIndex
+from .factor_models import FamaFrench5Factor, MarcenkoPasturDenoiser
+from .fixed_income import BondAnalytics, SVFYieldCurve
+from .annuities import IndexedAnnuityPayoff, AnnuityMonteCarloPricer
+from .sector_analysis import SectorRotatorML
 
-from portfolio_optimizer.analytics.tail_risk import (
-    calculate_var,
-    calculate_cvar,
-    calculate_max_drawdown,
-    calculate_calmar_ratio,
-    calculate_ulcer_index
-)
-
-from portfolio_optimizer.analytics.factor_models import (
-    run_fama_french_regression,
-    marcenko_pastur_filter
-)
-
-from portfolio_optimizer.analytics.fixed_income import (
-    calculate_bond_duration_and_convexity,
-    calculate_breakeven_inflation,
-    simulate_svf_crediting_rate
-)
-
-from portfolio_optimizer.analytics.annuities import (
-    calculate_indexed_annuity_payoff,
-    monte_carlo_annuity_pricing
-)
-
-from portfolio_optimizer.analytics.sector_analysis import RandomForestSectorRotator
+__all__ = [
+    "SharpeRatio",
+    "SortinoRatio",
+    "TreynorRatio",
+    "InformationRatio",
+    "compute_all_risk_metrics",
+    "ValueAtRisk",
+    "ConditionalVaR",
+    "MaximumDrawdown",
+    "CalmarRatio",
+    "UlcerIndex",
+    "FamaFrench5Factor",
+    "MarcenkoPasturDenoiser",
+    "BondAnalytics",
+    "SVFYieldCurve",
+    "IndexedAnnuityPayoff",
+    "AnnuityMonteCarloPricer",
+    "SectorRotatorML",
+]
