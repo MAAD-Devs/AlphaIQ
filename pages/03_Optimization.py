@@ -105,7 +105,7 @@ with col_controls:
     elif "Kelly" in solver_type:
         kelly_frac = st.slider("Kelly Fraction (0.5 = Half-Kelly)", min_value=0.1, max_value=1.0, value=0.5, step=0.1)
 
-    btn_run = st.button("🚀 Run Optimization", use_container_width=True)
+    btn_run = st.button("🚀 Run Optimization", width='stretch')
 
 # Handle Optimization Execution
 if btn_run or st.session_state.optimization_result is None:
@@ -204,7 +204,7 @@ with col_results:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width='stretch')
     except ImportError:
         st.bar_chart(df_comp.set_index("Ticker")[["Current Weight (%)", "Optimized Weight (%)"]])
 
@@ -219,10 +219,10 @@ with col_results:
                 "Rebalance Action ($)": "${:+,.2f}",
             }
         ),
-        use_container_width=True,
+        width='stretch',
     )
 
-    if st.button("✅ Apply Rebalanced Weights to Active Portfolio", type="primary", use_container_width=True):
+    if st.button("✅ Apply Rebalanced Weights to Active Portfolio", type="primary", width='stretch'):
         new_portfolio = res.to_portfolio(
             name=f"{portfolio.name} (Optimized - {res.method})",
             total_value=total_val,

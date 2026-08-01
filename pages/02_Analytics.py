@@ -58,7 +58,7 @@ if np.sum(weights_arr) > 0:
 portfolio_daily_returns = returns_df.values @ weights_arr
 port_series = pd.Series(portfolio_daily_returns, index=returns_df.index, name=portfolio.name)
 
-# --- Top Key Performance Ratios ---
+# --- Top  Performance Ratios ---
 st.subheader("📌 Executive Risk & Return Metrics")
 
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -96,7 +96,7 @@ with tab_breakdown:
     metrics_list = []
     for ticker in portfolio_tickers:
         s = returns_df[ticker]
-        stats = compute_all_risk_metrics(s, benchmark_series=benchmark_series, risk_free_rate=rf_rate)
+        stats = compute_all_risk_metrics(s, benchmark_returns=benchmark_series, risk_free_rate=rf_rate)
         stats["Ticker"] = ticker
         stats["Asset Class"] = next((a.asset_class.value for a in portfolio.asset_values if a.ticker == ticker), "Unknown")
         stats["Portfolio Weight (%)"] = portfolio.weights.get(ticker, 0.0) * 100
@@ -122,7 +122,7 @@ with tab_breakdown:
                 "CVaR 95%": "{:.2f}%",
             }
         ),
-        use_container_width=True,
+        width='stretch',
     )
 
 with tab_tailrisk:
@@ -134,7 +134,7 @@ with tab_tailrisk:
     with c_t2:
         st.metric("Conditional VaR (99%)", f"{ConditionalVaR(port_series, 0.99) * 100:.2f}%")
     with c_t3:
-        st.metric("Calmar Ratio", f"{CalmarRatio(port_series, risk_free_rate=rf_rate):.2f}")
+        st.metric("Calmar Ratio", f"{CalmarRatio(port_series):.2f}")
     with c_t4:
         st.metric("Ulcer Index", f"{UlcerIndex(port_series):.2f}")
 
@@ -158,7 +158,7 @@ with tab_tailrisk:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_dd, use_container_width=True)
+        st.plotly_chart(fig_dd, width='stretch')
     except ImportError:
         st.area_chart(drawdown)
 
@@ -181,21 +181,21 @@ with tab_correlation:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_corr, use_container_width=True)
+        st.plotly_chart(fig_corr, width='stretch')
     except ImportError:
-        st.dataframe(corr_matrix.style.background_gradient(cmap="Blues"), use_container_width=True)
+        st.dataframe(corr_matrix.style.background_gradient(cmap="Blues"), width='stretch')
 
 with tab_denoise:
     st.subheader("Marcenko-Pastur Random Matrix Noise Denoising")
     st.write("Filters out random sample noise from empirical covariance matrices using Random Matrix Theory (RMT).")
 
     q_ratio = len(returns_df) / len(portfolio_tickers)
-    denoiser = MarcenkoPasturDenoiser(q=q_ratio)
-    denoised_cov = denoiser.denoise_covariance(returns_df.cov().values)
+    denoiser = MarcenkoPasturDenoiser()
+    denoised_cov = denoiser.denoise_covariance(returns_df.cov().values, q_ratio)
 
     df_denoised_cov = pd.DataFrame(denoised_cov, index=portfolio_tickers, columns=portfolio_tickers)
     st.write("**Denoised Covariance Matrix (Annualized)**:")
-    st.dataframe((df_denoised_cov * 252).style.format("{:.4f}"), use_container_width=True)
+    st.dataframe((df_denoised_cov * 252).style.format("{:.4f}"), width='stretch')
 
 st.markdown("---")
 st.markdown(

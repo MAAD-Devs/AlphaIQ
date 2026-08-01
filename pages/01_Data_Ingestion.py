@@ -36,7 +36,7 @@ st.markdown(
 portfolio = st.session_state.portfolio
 
 # --- Tab Layout ---
-tab_entry, tab_inspection, tab_presets = st.tabs(["📝 Portfolio Data Entry", "🔍 Market Data Inspection", "⚡ Presets & Templates"])
+tab_entry, tab_inspection, tab_presets = st.tabs(["Portfolio Data Entry", "Market Data Inspection", "Presets & Templates"])
 
 with tab_entry:
     st.subheader("Current Portfolio Holdings")
@@ -71,7 +71,7 @@ with tab_entry:
     edited_df = st.data_editor(
         df_editable,
         num_rows="dynamic",
-        use_container_width=True,
+        width='stretch',
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker (e.g. AAPL)", required=True),
             "Asset Class": st.column_config.SelectboxColumn(
@@ -159,7 +159,7 @@ with tab_inspection:
                 plot_bgcolor="rgba(0,0,0,0)",
                 hovermode="x unified",
             )
-            st.plotly_chart(fig_prices, use_container_width=True)
+            st.plotly_chart(fig_prices, width='stretch')
         except ImportError:
             st.line_chart(norm_prices)
 
@@ -180,7 +180,7 @@ with tab_presets:
             }
             for a, v in zip(info["assets"], info["values"])
         ])
-        st.dataframe(p_df, use_container_width=True)
+        st.dataframe(p_df, width='stretch')
 
         if st.button(f"Load {key} Template", key=f"btn_load_{key}"):
             st.session_state.portfolio = load_portfolio_template(key)

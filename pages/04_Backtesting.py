@@ -107,7 +107,7 @@ try:
         plot_bgcolor="rgba(0,0,0,0)",
         hovermode="x unified",
     )
-    st.plotly_chart(fig_growth, use_container_width=True)
+    st.plotly_chart(fig_growth, width='stretch')
 except ImportError:
     st.line_chart(cum_growth)
 
@@ -155,7 +155,7 @@ st.dataframe(
             "VaR 95% (%)": "{:.2f}%",
         }
     ),
-    use_container_width=True,
+    width='stretch',
 )
 
 # --- Rolling Risk Diagnostics ---
@@ -175,7 +175,7 @@ try:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig_rvol, use_container_width=True)
+    st.plotly_chart(fig_rvol, width='stretch')
 except ImportError:
     st.line_chart(rolling_vol)
 
