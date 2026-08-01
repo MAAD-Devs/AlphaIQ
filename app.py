@@ -169,7 +169,7 @@ with left_col:
                 plot_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         except ImportError:
             st.bar_chart(df_weights.set_index("Ticker")["Weight (%)"])
 
@@ -181,7 +181,7 @@ with left_col:
                     "Annual Expense Drag (%)": "{:.3f}%",
                 }
             ),
-            use_container_width=True,
+            width='stretch',
         )
 
 with right_col:
