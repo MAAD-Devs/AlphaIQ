@@ -7,7 +7,7 @@ name = "portfolio_optimizer"
 version = "0.1.0"
 description = "Quantitative Portfolio Optimization and Risk Management Dashboard"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "financetoolkit>=2.0.7",
     "fredapi>=0.5.2",
@@ -26,3 +26,6 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.uv]
+package = false
