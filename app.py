@@ -20,6 +20,7 @@ from utils.state_management import (
     init_session_state,
     inject_custom_css,
     load_portfolio_template,
+    persist_portfolio,
 )
 
 # Configure Streamlit page
@@ -66,6 +67,7 @@ template_choice = st.sidebar.selectbox(
 if template_choice != "Custom / Current":
     if st.sidebar.button("Apply Selected Template"):
         st.session_state.portfolio = load_portfolio_template(template_choice)
+        persist_portfolio(st.session_state.portfolio)
         fetch_and_cache_market_data()
         st.sidebar.success(f"Loaded '{template_choice}' template!")
         st.rerun()

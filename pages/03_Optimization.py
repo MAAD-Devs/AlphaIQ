@@ -26,6 +26,7 @@ from utils.state_management import (
     fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
+    persist_portfolio,
     require_auth,
 )
 
@@ -309,6 +310,7 @@ with col_results:
             account_drag=portfolio.account_drag,
         )
         st.session_state.portfolio = new_portfolio
+        persist_portfolio(new_portfolio)
         fetch_and_cache_market_data()
         st.success("Active portfolio rebalanced and updated successfully!")
         st.rerun()

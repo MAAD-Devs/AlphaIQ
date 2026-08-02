@@ -2,8 +2,11 @@
 Page 1: Portfolio Data Entry & Data Ingestion Pipeline.
 """
 
+import logging
 import os
 import sys
+
+logger = logging.getLogger(__name__)
 
 # Ensure project root directory is in sys.path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -20,6 +23,7 @@ from utils.state_management import (
     init_session_state,
     inject_custom_css,
     load_portfolio_template,
+    persist_portfolio,
     require_auth,
 )
 
@@ -131,8 +135,9 @@ with tab_entry:
                 asset_values=new_asset_values,
                 account_drag=new_account_drag_bps / 10000.0,
             )
+            persist_portfolio(st.session_state.portfolio)
             fetch_and_cache_market_data()
-            st.success("Portfolio updated and market data refreshed!")
+            st.success("Portfolio saved!")
             st.rerun()
 
 with tab_inspection:
@@ -207,6 +212,7 @@ with tab_presets:
 
         if st.button(f"Load {key} Template", key=f"btn_load_{key}"):
             st.session_state.portfolio = load_portfolio_template(key)
+            persist_portfolio(st.session_state.portfolio)
             fetch_and_cache_market_data()
             st.success(f"Successfully loaded '{key}' portfolio!")
             st.rerun()

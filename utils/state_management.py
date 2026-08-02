@@ -1,9 +1,22 @@
 """
 Session state initialization, portfolio template loaders, and data caching helpers.
 """
+import logging
 import os
 import sys
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# When APP_ENV=TEST, emit DEBUG and above for all app loggers.
+# Otherwise default to WARNING so routine logs stay out of production output.
+_log_level = logging.DEBUG if os.environ.get("APP_ENV") == "TEST" else logging.WARNING
+logging.getLogger("utils").setLevel(_log_level)
+logging.getLogger("pages").setLevel(_log_level)
 
 import numpy as np
 import pandas as pd
@@ -89,6 +102,19 @@ PRESET_TEMPLATES = {
 }
 
 
+def persist_portfolio(portfolio) -> None:
+    """Saves portfolio to the database for the current user. Silent no-op if not logged in."""
+    if not (hasattr(st.user, "is_logged_in") and st.user.is_logged_in):
+        return
+    try:
+        from utils.db import save_portfolio
+
+        save_portfolio(st.user.email, portfolio)
+    except Exception:
+        logger.exception("Failed to save portfolio to DB")
+        st.warning("Could not sync portfolio to database. Check logs for details.")
+
+
 def require_auth():
     """Redirects unauthenticated users to the login page."""
     if hasattr(st.user, "is_logged_in") and not st.user.is_logged_in:
@@ -121,7 +147,20 @@ def load_portfolio_template(template_key: str) -> Portfolio:
 def init_session_state():
     """Initializes all required session state variables."""
     if "portfolio" not in st.session_state:
-        st.session_state.portfolio = load_portfolio_template("Growth & Tech")
+        if hasattr(st.user, "is_logged_in") and st.user.is_logged_in:
+            try:
+                from utils.db import get_or_create_user, load_active_portfolio
+
+                get_or_create_user(st.user.email)
+                loaded = load_active_portfolio(st.user.email)
+                st.session_state.portfolio = loaded or load_portfolio_template(
+                    "Growth & Tech"
+                )
+            except Exception:
+                logger.exception("Failed to initialise DB on login")
+                st.session_state.portfolio = load_portfolio_template("Growth & Tech")
+        else:
+            st.session_state.portfolio = load_portfolio_template("Growth & Tech")
 
     if "lookback_period" not in st.session_state:
         st.session_state.lookback_period = "3y"
