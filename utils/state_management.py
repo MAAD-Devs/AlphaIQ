@@ -91,7 +91,7 @@ PRESET_TEMPLATES = {
 
 def require_auth():
     """Redirects unauthenticated users to the login page."""
-    if not st.user.is_logged_in:
+    if hasattr(st.user, "is_logged_in") and not st.user.is_logged_in:
         st.warning("You must be signed in to view this page.")
         if st.button("Sign in with Google"):
             st.login("google")

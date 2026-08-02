@@ -35,7 +35,7 @@ inject_custom_css()
 init_session_state()
 
 # --- Auth Gate ---
-if not st.user.is_logged_in:
+if hasattr(st.user, "is_logged_in") and not st.user.is_logged_in:
     st.markdown(
         '<div class="gradient-header">Quantitative Portfolio Optimizer</div>',
         unsafe_allow_html=True,
