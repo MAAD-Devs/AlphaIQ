@@ -89,6 +89,15 @@ PRESET_TEMPLATES = {
 }
 
 
+def require_auth():
+    """Redirects unauthenticated users to the login page."""
+    if not st.user.is_logged_in:
+        st.warning("You must be signed in to view this page.")
+        if st.button("Sign in with Google"):
+            st.login("google")
+        st.stop()
+
+
 def inject_custom_css():
     """Injects style.css into Streamlit app if present."""
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "style.css")
