@@ -1,22 +1,22 @@
 """
 Session state initialization, portfolio template loaders, and data caching helpers.
 """
-
 import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+from portfolio_optimizer.core.data_models import Asset, AssetClass, Portfolio
+from portfolio_optimizer.data.market_data import MarketDataLoader
 
 # Ensure project root directory is in sys.path to resolve 'portfolio_optimizer' imports
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-
-from portfolio_optimizer.core.data_models import Portfolio, Asset, AssetClass
-from portfolio_optimizer.data.market_data import MarketDataLoader
 
 PRESET_TEMPLATES = {
     "Growth & Tech": {
@@ -26,7 +26,12 @@ PRESET_TEMPLATES = {
             Asset("AAPL", AssetClass.EQUITY, "Apple Inc.", annual_drag=0.0),
             Asset("MSFT", AssetClass.EQUITY, "Microsoft Corp.", annual_drag=0.0),
             Asset("NVDA", AssetClass.EQUITY, "NVIDIA Corp.", annual_drag=0.0),
-            Asset("VTI", AssetClass.ETF, "Vanguard Total Stock Market ETF", annual_drag=0.0003),
+            Asset(
+                "VTI",
+                AssetClass.ETF,
+                "Vanguard Total Stock Market ETF",
+                annual_drag=0.0003,
+            ),
         ],
         "values": [35000.0, 30000.0, 20000.0, 15000.0],
     },
@@ -34,10 +39,27 @@ PRESET_TEMPLATES = {
         "name": "60/40 Retirement Portfolio",
         "account_drag": 0.0015,  # 15 bps
         "assets": [
-            Asset("VTI", AssetClass.ETF, "Vanguard Total Stock Market ETF", annual_drag=0.0003),
-            Asset("VEA", AssetClass.ETF, "Vanguard FTSE Developed Markets ETF", annual_drag=0.0005),
-            Asset("BND", AssetClass.BOND, "Vanguard Total Bond Market ETF", annual_drag=0.00035),
-            Asset("VNQ", AssetClass.REIT, "Vanguard Real Estate ETF", annual_drag=0.0012),
+            Asset(
+                "VTI",
+                AssetClass.ETF,
+                "Vanguard Total Stock Market ETF",
+                annual_drag=0.0003,
+            ),
+            Asset(
+                "VEA",
+                AssetClass.ETF,
+                "Vanguard FTSE Developed Markets ETF",
+                annual_drag=0.0005,
+            ),
+            Asset(
+                "BND",
+                AssetClass.BOND,
+                "Vanguard Total Bond Market ETF",
+                annual_drag=0.00035,
+            ),
+            Asset(
+                "VNQ", AssetClass.REIT, "Vanguard Real Estate ETF", annual_drag=0.0012
+            ),
         ],
         "values": [40000.0, 20000.0, 30000.0, 10000.0],
     },
@@ -45,10 +67,21 @@ PRESET_TEMPLATES = {
         "name": "Multi-Asset Endowment Portfolio",
         "account_drag": 0.0020,  # 20 bps
         "assets": [
-            Asset("VTI", AssetClass.ETF, "Vanguard Total Stock ETF", annual_drag=0.0003),
-            Asset("VXUS", AssetClass.ETF, "Vanguard Total International ETF", annual_drag=0.0007),
-            Asset("BND", AssetClass.BOND, "Vanguard Total Bond ETF", annual_drag=0.00035),
-            Asset("VNQ", AssetClass.REIT, "Vanguard Real Estate ETF", annual_drag=0.0012),
+            Asset(
+                "VTI", AssetClass.ETF, "Vanguard Total Stock ETF", annual_drag=0.0003
+            ),
+            Asset(
+                "VXUS",
+                AssetClass.ETF,
+                "Vanguard Total International ETF",
+                annual_drag=0.0007,
+            ),
+            Asset(
+                "BND", AssetClass.BOND, "Vanguard Total Bond ETF", annual_drag=0.00035
+            ),
+            Asset(
+                "VNQ", AssetClass.REIT, "Vanguard Real Estate ETF", annual_drag=0.0012
+            ),
             Asset("GLD", AssetClass.ETF, "SPDR Gold Shares", annual_drag=0.0040),
         ],
         "values": [30000.0, 20000.0, 25000.0, 15000.0, 10000.0],
@@ -60,7 +93,7 @@ def inject_custom_css():
     """Injects style.css into Streamlit app if present."""
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "style.css")
     if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as f:
+        with open(css_path, encoding="utf-8") as f:
             css_content = f.read()
         st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
@@ -131,7 +164,9 @@ def fetch_and_cache_market_data(
             st.session_state.benchmark_series = benchmark
             return True
     except Exception as e:
-        st.warning(f"Live market data fetch encountered an issue ({e}). Generating high-fidelity statistical fallback data...")
+        st.warning(
+            f"Live market data fetch encountered an issue ({e}). Generating high-fidelity statistical fallback data..."
+        )
 
     # Fallback synthetic generator for seamless offline execution & preview
     np.random.seed(42)

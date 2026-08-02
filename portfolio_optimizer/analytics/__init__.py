@@ -2,12 +2,24 @@
 Specialized financial analytics engines.
 """
 
-from .risk_metrics import SharpeRatio, SortinoRatio, TreynorRatio, InformationRatio, compute_all_risk_metrics
-from .tail_risk import ValueAtRisk, ConditionalVaR, MaximumDrawdown, CalmarRatio, UlcerIndex
+from .annuities import AnnuityMonteCarloPricer, IndexedAnnuityPayoff
 from .factor_models import FamaFrench5Factor, MarcenkoPasturDenoiser
 from .fixed_income import BondAnalytics, SVFYieldCurve
-from .annuities import IndexedAnnuityPayoff, AnnuityMonteCarloPricer
+from .risk_metrics import (
+    InformationRatio,
+    SharpeRatio,
+    SortinoRatio,
+    TreynorRatio,
+    compute_all_risk_metrics,
+)
 from .sector_analysis import SectorRotatorML
+from .tail_risk import (
+    CalmarRatio,
+    ConditionalVaR,
+    MaximumDrawdown,
+    UlcerIndex,
+    ValueAtRisk,
+)
 
 __all__ = [
     "SharpeRatio",

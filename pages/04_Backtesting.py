@@ -2,23 +2,28 @@
 Page 4: Out-of-Sample Backtesting & Historical Strategy Performance.
 """
 
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
 
 from portfolio_optimizer.analytics.risk_metrics import SharpeRatio, SortinoRatio
 from portfolio_optimizer.analytics.tail_risk import MaximumDrawdown, ValueAtRisk
 from utils.state_management import (
+    fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
-    fetch_and_cache_market_data,
 )
 
-st.set_page_config(page_title="04 Backtesting - Strategy Performance", page_icon="📈", layout="wide")
+st.set_page_config(
+    page_title="04 Backtesting - Strategy Performance", page_icon="📈", layout="wide"
+)
 inject_custom_css()
 init_session_state()
 
-st.markdown('<div class="gradient-header">04 Out-of-Sample Backtesting</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="gradient-header">04 Out-of-Sample Backtesting</div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="gradient-subtext">Evaluate historical strategy performance, rolling Sharpe ratios, and rebalanced cumulative growth.</div>',
     unsafe_allow_html=True,
@@ -43,15 +48,29 @@ returns_df = returns_df[portfolio_tickers]
 
 # --- Sidebar / Backtest Controls ---
 st.sidebar.subheader("⚙️ Backtest Parameters")
-initial_capital = st.sidebar.number_input("Initial Investment ($)", min_value=1000.0, max_value=10000000.0, value=10000.0, step=1000.0)
-rebalance_freq = st.sidebar.selectbox("Rebalancing Frequency", options=["Buy & Hold", "Monthly", "Quarterly", "Annually"], index=1)
-train_test_split = st.sidebar.slider("In-Sample Train Split (%)", min_value=30, max_value=80, value=50, step=10)
+initial_capital = st.sidebar.number_input(
+    "Initial Investment ($)",
+    min_value=1000.0,
+    max_value=10000000.0,
+    value=10000.0,
+    step=1000.0,
+)
+rebalance_freq = st.sidebar.selectbox(
+    "Rebalancing Frequency",
+    options=["Buy & Hold", "Monthly", "Quarterly", "Annually"],
+    index=1,
+)
+train_test_split = st.sidebar.slider(
+    "In-Sample Train Split (%)", min_value=30, max_value=80, value=50, step=10
+)
 
 split_idx = int(len(returns_df) * (train_test_split / 100.0))
 in_sample_returns = returns_df.iloc[:split_idx]
 out_sample_returns = returns_df.iloc[split_idx:]
 
-st.info(f"**Historical Timeline**: {len(returns_df)} Trading Days Total | **In-Sample Train**: {len(in_sample_returns)} Days | **Out-of-Sample Test**: {len(out_sample_returns)} Days")
+st.info(
+    f"**Historical Timeline**: {len(returns_df)} Trading Days Total | **In-Sample Train**: {len(in_sample_returns)} Days | **Out-of-Sample Test**: {len(out_sample_returns)} Days"
+)
 
 # Calculate Strategy Returns
 # 1. Current Allocation Returns
@@ -63,7 +82,12 @@ current_strat_returns = out_sample_returns.values @ curr_weights
 
 # 2. Optimized Allocation Returns
 if opt_res is not None:
-    opt_weights = np.array([opt_res.weights.get(t, 1.0 / len(portfolio_tickers)) for t in portfolio_tickers])
+    opt_weights = np.array(
+        [
+            opt_res.weights.get(t, 1.0 / len(portfolio_tickers))
+            for t in portfolio_tickers
+        ]
+    )
     if np.sum(opt_weights) > 0:
         opt_weights /= np.sum(opt_weights)
     opt_strat_returns = out_sample_returns.values @ opt_weights
@@ -89,7 +113,9 @@ df_backtest = pd.DataFrame(
 cum_growth = (1 + df_backtest).cumprod() * initial_capital
 
 # --- Visual Growth Chart ---
-st.subheader(f"📈 Out-of-Sample Cumulative Growth (${initial_capital:,.0f} Initial Capital)")
+st.subheader(
+    f"📈 Out-of-Sample Cumulative Growth (${initial_capital:,.0f} Initial Capital)"
+)
 
 try:
     import plotly.express as px
@@ -107,7 +133,7 @@ try:
         plot_bgcolor="rgba(0,0,0,0)",
         hovermode="x unified",
     )
-    st.plotly_chart(fig_growth, width='stretch')
+    st.plotly_chart(fig_growth, width="stretch")
 except ImportError:
     st.line_chart(cum_growth)
 
@@ -155,7 +181,7 @@ st.dataframe(
             "VaR 95% (%)": "{:.2f}%",
         }
     ),
-    width='stretch',
+    width="stretch",
 )
 
 # --- Rolling Risk Diagnostics ---
@@ -175,7 +201,7 @@ try:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig_rvol, width='stretch')
+    st.plotly_chart(fig_rvol, width="stretch")
 except ImportError:
     st.line_chart(rolling_vol)
 

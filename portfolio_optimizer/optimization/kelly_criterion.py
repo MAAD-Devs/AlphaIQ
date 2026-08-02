@@ -2,13 +2,14 @@
 Kelly Criterion logarithmic utility optimizer for maximizing long-term CAGR.
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+from ..core.data_models import Asset, OptimizationResult, Portfolio
 from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult, Portfolio, Asset
 
 
 class KellyCriterionOptimizer(BasePortfolioOptimizer):
@@ -49,18 +50,24 @@ class KellyCriterionOptimizer(BasePortfolioOptimizer):
 
         init_w = np.full(n, 1.0 / n)
         bounds = tuple((0.0, 1.0) for _ in range(n))
-        constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0})
+        constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1.0}
 
-        res = minimize(obj_func, init_w, bounds=bounds, constraints=constraints, method='SLSQP')
+        res = minimize(
+            obj_func, init_w, bounds=bounds, constraints=constraints, method="SLSQP"
+        )
         w_full = res.x if res.success else init_w
         w_full = w_full / np.sum(w_full)
 
         # Apply fractional Kelly scaling relative to equal weight anchor or cash
-        w_scaled = self.fraction * w_full + (1.0 - self.fraction) * (np.full(n, 1.0 / n))
+        w_scaled = self.fraction * w_full + (1.0 - self.fraction) * (
+            np.full(n, 1.0 / n)
+        )
         w_scaled = w_scaled / np.sum(w_scaled)
 
         w_dict = dict(zip(tickers, w_scaled))
-        stats = self.compute_summary_stats(w_scaled, returns.mean(), returns.cov(), fee_drag=total_drag)
+        stats = self.compute_summary_stats(
+            w_scaled, returns.mean(), returns.cov(), fee_drag=total_drag
+        )
 
         return OptimizationResult(
             method=f"KellyCriterion_frac_{self.fraction}",
@@ -104,5 +111,10 @@ if __name__ == "__main__":
     print(f"Volatility: {res_kelly.volatility:.4f}")
     print(f"Sharpe Ratio: {res_kelly.sharpe_ratio:.4f}")
     print("Half-Kelly Weights:", {k: round(v, 4) for k, v in res_kelly.weights.items()})
-    print("Full-Kelly Weights:", {k: round(v, 4) for k, v in res_kelly.additional_metrics["full_kelly_weights"].items()})
-
+    print(
+        "Full-Kelly Weights:",
+        {
+            k: round(v, 4)
+            for k, v in res_kelly.additional_metrics["full_kelly_weights"].items()
+        },
+    )

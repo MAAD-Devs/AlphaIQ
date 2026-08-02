@@ -3,8 +3,9 @@ YFinance wrapper for downloading and processing historical price data for equiti
 """
 
 from typing import List, Optional, Union
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import yfinance as yf
 
 
@@ -99,7 +100,7 @@ class MarketDataLoader:
 
     def fetch_benchmark(
         self,
-        benchmark_ticker: str = "^GSPC", # S&P500 as benchmark 
+        benchmark_ticker: str = "^GSPC",  # S&P500 as benchmark
         period: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -116,6 +117,7 @@ class MarketDataLoader:
         if returns.empty:
             return pd.Series(dtype=float)
         return returns.iloc[:, 0]
+
 
 if __name__ == "__main__":
     loader = MarketDataLoader(default_period="1mo")

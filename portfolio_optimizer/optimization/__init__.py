@@ -3,12 +3,12 @@ Riskfolio-Lib wrappers & portfolio optimization solvers.
 """
 
 from .base_optimizer import BasePortfolioOptimizer
-from .traditional import MeanVarianceOptimizer, RiskParityOptimizer
-from .hierarchical import HierarchicalRiskParityOptimizer
 from .black_litterman import BlackLittermanOptimizer
+from .constraints import PortfolioConstraints
+from .hierarchical import HierarchicalRiskParityOptimizer
 from .kelly_criterion import KellyCriterionOptimizer
 from .shortfall_minimization import ShortfallMinimizationOptimizer
-from .constraints import PortfolioConstraints
+from .traditional import MeanVarianceOptimizer, RiskParityOptimizer
 
 __all__ = [
     "BasePortfolioOptimizer",

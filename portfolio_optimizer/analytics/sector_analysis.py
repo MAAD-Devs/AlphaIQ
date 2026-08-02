@@ -3,7 +3,7 @@ Machine Learning Random Forest Sector Rotator for dynamic macro & momentum secto
 """
 
 from typing import Dict, List, Optional, Tuple
-import numpy as np
+
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
@@ -15,7 +15,9 @@ class SectorRotatorML:
     """
 
     def __init__(self, n_estimators: int = 100, random_state: int = 42):
-        self.model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+        self.model = RandomForestClassifier(
+            n_estimators=n_estimators, random_state=random_state
+        )
         self.is_fitted = False
         self.feature_names: List[str] = []
 
@@ -63,13 +65,17 @@ class SectorRotatorML:
         accuracy = float(self.model.score(X, y))
         return {"training_accuracy": accuracy}
 
-    def predict_sector_weights(self, current_features: pd.DataFrame) -> Dict[str, float]:
+    def predict_sector_weights(
+        self, current_features: pd.DataFrame
+    ) -> Dict[str, float]:
         """
         Predicts target sector weights based on class probabilities from the Random Forest model.
         """
         if not self.is_fitted:
             # Equal weighting fallback
-            sectors = [c.replace("_mom_21", "") for c in self.feature_names if "_mom_21" in c]
+            sectors = [
+                c.replace("_mom_21", "") for c in self.feature_names if "_mom_21" in c
+            ]
             if not sectors:
                 return {}
             w = 1.0 / len(sectors)

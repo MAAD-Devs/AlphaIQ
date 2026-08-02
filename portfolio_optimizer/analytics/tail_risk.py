@@ -2,10 +2,11 @@
 Tail risk and drawdown analytics: VaR, CVaR, Max Drawdown, Calmar Ratio, and Ulcer Index.
 """
 
-from typing import Union, Dict
+from typing import Union
+
 import numpy as np
 import pandas as pd
-from scipy.stats import norm, skew, kurtosis
+from scipy.stats import kurtosis, norm, skew
 
 
 def ValueAtRisk(
@@ -39,7 +40,12 @@ def ValueAtRisk(
         z = norm.ppf(confidence_level)
 
         # Cornish-Fisher expansion adjusted quantile
-        z_cf = z + (s / 6) * (z**2 - 1) + (k / 24) * (z**3 - 3 * z) - (s**2 / 36) * (2 * z**3 - 5 * z)
+        z_cf = (
+            z
+            + (s / 6) * (z**2 - 1)
+            + (k / 24) * (z**3 - 3 * z)
+            - (s**2 / 36) * (2 * z**3 - 5 * z)
+        )
         var_val = z_cf * sigma - mu
     else:
         raise ValueError(f"Unknown VaR method: {method}")
@@ -70,7 +76,9 @@ def ConditionalVaR(
     return float(max(0.0, cvar_val))
 
 
-def MaximumDrawdown(prices_or_returns: Union[pd.Series, np.ndarray], is_returns: bool = True) -> float:
+def MaximumDrawdown(
+    prices_or_returns: Union[pd.Series, np.ndarray], is_returns: bool = True
+) -> float:
     """
     Calculates Maximum Drawdown (mdd).
     Returns a positive float representing peak-to-trough decline (e.g. 0.25 for 25%).
@@ -111,7 +119,9 @@ def CalmarRatio(
     return float(annual_return / mdd)
 
 
-def UlcerIndex(prices_or_returns: Union[pd.Series, np.ndarray], is_returns: bool = True) -> float:
+def UlcerIndex(
+    prices_or_returns: Union[pd.Series, np.ndarray], is_returns: bool = True
+) -> float:
     """
     Calculates Ulcer Index measuring downside risk stress over time.
     UI = sqrt( mean( % drawdown ^ 2 ) )

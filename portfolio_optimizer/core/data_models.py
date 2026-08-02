@@ -4,7 +4,7 @@ Domain models for assets, portfolios, market data requests, and optimization res
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 class AssetClass(str, Enum):
@@ -57,7 +57,9 @@ class Portfolio:
         total = self.total_value
         if total == 0:
             return {asset.ticker: 0.0 for asset in self.asset_values}
-        return {asset.ticker: value / total for asset, value in self.asset_values.items()}
+        return {
+            asset.ticker: value / total for asset, value in self.asset_values.items()
+        }
 
 
 @dataclass
@@ -114,8 +116,15 @@ class OptimizationResult:
 
 
 if __name__ == "__main__":
-    aapl = Asset(ticker="AAPL", asset_class=AssetClass.EQUITY, name="Apple Inc.", annual_drag=0.0)
-    vti = Asset(ticker="VTI", asset_class=AssetClass.ETF, name="Vanguard Total Stock Market ETF", annual_drag=0.0003)
+    aapl = Asset(
+        ticker="AAPL", asset_class=AssetClass.EQUITY, name="Apple Inc.", annual_drag=0.0
+    )
+    vti = Asset(
+        ticker="VTI",
+        asset_class=AssetClass.ETF,
+        name="Vanguard Total Stock Market ETF",
+        annual_drag=0.0003,
+    )
 
     portfolio = Portfolio(
         name="Growth Portfolio",

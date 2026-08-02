@@ -3,9 +3,11 @@ Shared Abstract Base Class for portfolio optimization solvers.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
+
 from ..core.data_models import OptimizationResult, Portfolio
 
 
@@ -67,7 +69,7 @@ class BasePortfolioOptimizer(ABC):
         mean_returns: pd.Series,
         cov_matrix: pd.DataFrame,
         fee_drag: Optional[float] = None,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculates annualized expected return, volatility, and Sharpe ratio given weights.
         """
@@ -75,7 +77,9 @@ class BasePortfolioOptimizer(ABC):
         exp_ret = float(np.sum(mean_returns * weights) * 252 - drag)
         port_var = float(weights.T @ cov_matrix.values @ weights * 252)
         port_vol = float(np.sqrt(max(1e-8, port_var)))
-        sharpe = float((exp_ret - self.risk_free_rate) / port_vol) if port_vol > 0 else 0.0
+        sharpe = (
+            float((exp_ret - self.risk_free_rate) / port_vol) if port_vol > 0 else 0.0
+        )
 
         return {
             "expected_return": exp_ret,

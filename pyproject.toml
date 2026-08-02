@@ -29,3 +29,49 @@ where = ["."]
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.1",
+]
+
+
+[tool.ruff]
+# Target Python version matching your project setting
+target-version = "py39"
+line-length = 88
+indent-width = 4
+
+# Exclude auto-generated and cache directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist"
+]
+
+[tool.ruff.lint]
+# Selected rule sets:
+# F: Pyflakes (detects undefined variables, unused imports)
+# E/W: pycodestyle (PEP 8 errors/warnings)
+# I: isort (auto-sorts imports)
+# B: flake8-bugbear (catches subtle bugs and design traps)
+# UP: pyupgrade (modernizes syntax for your target python version)
+# ICN: flake8-import-conventions (enforces pd, np, plt aliases)
+# SIM: flake8-simplify (suggests simpler code structures)
+select = ["F", "E", "W", "I", "B", "UP", "ICN", "SIM"]
+
+# Ignore line length rules if you let the auto-formatter handle formatting
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-import-conventions.extend-aliases]
+pandas = "pd"
+numpy = "np"
+matplotlib = "plt"
+statsmodels = "sm"
+[tool.ruff.format]
+# Matches Black's default code style
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
