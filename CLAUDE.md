@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Branch Rules
+
+- **Never push directly to `release`** — it is the production branch deployed to Streamlit Cloud. All changes go through `master` (or a feature branch) first, then are merged into `release` via PR.
+
 ## Running the App
 
 ```bash
