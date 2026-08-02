@@ -18,6 +18,16 @@ pip install -r requirements.txt
 
 Python version: **3.14** (see `.python-version`). The devcontainer uses Python 3.11.
 
+## Adding New Packages
+
+Streamlit Cloud deploys from `uv.lock`, not `requirements.txt`. Adding a package to `requirements.txt` alone won't be picked up in production. Always do both:
+
+```bash
+python -m uv add "<package>"   # updates uv.lock and pyproject.toml
+```
+
+Then manually add the same package to `requirements.txt` for local pip installs.
+
 ## Authentication
 
 The app uses Streamlit's built-in Google OAuth (`st.user`, `st.login`, `st.logout`). Auth is gated in `app.py` before any page content renders.
