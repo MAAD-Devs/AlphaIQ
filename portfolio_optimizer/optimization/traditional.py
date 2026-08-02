@@ -2,7 +2,8 @@
 Traditional portfolio optimization solvers: Mean-Variance Optimization (MVO) & Vanilla Risk Parity.
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -12,8 +13,8 @@ try:
 except ImportError:
     rp = None
 
+from ..core.data_models import Asset, AssetClass, OptimizationResult, Portfolio
 from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult, Portfolio, Asset, AssetClass
 
 
 class MeanVarianceOptimizer(BasePortfolioOptimizer):
@@ -53,11 +54,15 @@ class MeanVarianceOptimizer(BasePortfolioOptimizer):
                 port.assets_stats(method_mu="hist", method_cov="hist")
                 model = "Classic"
                 obj = "Sharpe" if self.objective == "MaxSharpe" else "MinRisk"
-                w_df = port.optimization(model=model, rm="MV", obj=obj, rf=self.risk_free_rate, l=0)
+                w_df = port.optimization(
+                    model=model, rm="MV", obj=obj, rf=self.risk_free_rate, l=0
+                )
                 if w_df is not None:
                     w = w_df.values.flatten()
                     w_dict = dict(zip(tickers, w))
-                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
+                    stats = self.compute_summary_stats(
+                        w, returns.mean(), returns.cov(), fee_drag=total_drag
+                    )
                     return OptimizationResult(
                         method=f"MVO_{self.objective}_Riskfolio",
                         weights=w_dict,
@@ -70,7 +75,11 @@ class MeanVarianceOptimizer(BasePortfolioOptimizer):
                 print(f"Riskfolio solver failed, using scipy fallback: {e}")
 
         # SciPy fallback
-        cov = pd.DataFrame(custom_cov, index=tickers, columns=tickers) if custom_cov is not None else returns.cov()
+        cov = (
+            pd.DataFrame(custom_cov, index=tickers, columns=tickers)
+            if custom_cov is not None
+            else returns.cov()
+        )
         mean_ret = returns.mean()
 
         def min_vol_func(w):
@@ -84,9 +93,11 @@ class MeanVarianceOptimizer(BasePortfolioOptimizer):
         target_func = max_sharpe_func if self.objective == "MaxSharpe" else min_vol_func
         init_w = np.full(n, 1.0 / n)
         bounds = tuple((self.min_weight, self.max_weight) for _ in range(n))
-        constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0})
+        constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1.0}
 
-        res = minimize(target_func, init_w, bounds=bounds, constraints=constraints, method='SLSQP')
+        res = minimize(
+            target_func, init_w, bounds=bounds, constraints=constraints, method="SLSQP"
+        )
         w = res.x if res.success else init_w
         w = w / np.sum(w)
         w_dict = dict(zip(tickers, w))
@@ -123,11 +134,15 @@ class RiskParityOptimizer(BasePortfolioOptimizer):
             try:
                 port = rp.Portfolio(returns=returns)
                 port.assets_stats(method_mu="hist", method_cov="hist")
-                w_df = port.rp_optimization(model="Classic", rm="MV", rf=self.risk_free_rate)
+                w_df = port.rp_optimization(
+                    model="Classic", rm="MV", rf=self.risk_free_rate
+                )
                 if w_df is not None:
                     w = w_df.values.flatten()
                     w_dict = dict(zip(tickers, w))
-                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
+                    stats = self.compute_summary_stats(
+                        w, returns.mean(), returns.cov(), fee_drag=total_drag
+                    )
                     return OptimizationResult(
                         method="RiskParity_Riskfolio",
                         weights=w_dict,
@@ -139,7 +154,11 @@ class RiskParityOptimizer(BasePortfolioOptimizer):
             except Exception as e:
                 print(f"Riskfolio RiskParity failed, using scipy fallback: {e}")
 
-        cov = pd.DataFrame(custom_cov, index=tickers, columns=tickers) if custom_cov is not None else returns.cov()
+        cov = (
+            pd.DataFrame(custom_cov, index=tickers, columns=tickers)
+            if custom_cov is not None
+            else returns.cov()
+        )
         cov_vals = cov.values
 
         # Equal Risk Contribution objective: min sum( (w_i - (sigma^2 w)_i / (w' Sigma w))^2 )
@@ -152,9 +171,15 @@ class RiskParityOptimizer(BasePortfolioOptimizer):
 
         init_w = np.full(n, 1.0 / n)
         bounds = tuple((0.0, 1.0) for _ in range(n))
-        constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0})
+        constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1.0}
 
-        res = minimize(risk_parity_objective, init_w, bounds=bounds, constraints=constraints, method='SLSQP')
+        res = minimize(
+            risk_parity_objective,
+            init_w,
+            bounds=bounds,
+            constraints=constraints,
+            method="SLSQP",
+        )
         w = res.x if res.success else init_w
         w = w / np.sum(w)
         w_dict = dict(zip(tickers, w))
@@ -204,7 +229,9 @@ if __name__ == "__main__":
     print("Weights:", {k: round(v, 4) for k, v in res_max_sharpe.weights.items()})
 
     # Test converting OptimizationResult to new Portfolio
-    new_port = res_max_sharpe.to_portfolio(name="Rebalanced Portfolio", total_value=user_portfolio.total_value)
+    new_port = res_max_sharpe.to_portfolio(
+        name="Rebalanced Portfolio", total_value=user_portfolio.total_value
+    )
     print(f"\nNew Portfolio Total Value: ${new_port.total_value:,.2f}")
     print("New Portfolio Weights:", new_port.weights)
 

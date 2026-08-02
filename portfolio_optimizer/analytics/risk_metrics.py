@@ -2,7 +2,8 @@
 Specialized risk ratio analytics: Sharpe, Sortino, Treynor, and Information Ratios.
 """
 
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
+
 import numpy as np
 import pandas as pd
 
@@ -126,11 +127,17 @@ def compute_all_risk_metrics(
     """
     metrics = {
         "sharpe_ratio": SharpeRatio(returns, risk_free_rate, annualization_factor),
-        "sortino_ratio": SortinoRatio(returns, risk_free_rate, 0.0, annualization_factor),
+        "sortino_ratio": SortinoRatio(
+            returns, risk_free_rate, 0.0, annualization_factor
+        ),
     }
 
     if benchmark_returns is not None:
-        metrics["treynor_ratio"] = TreynorRatio(returns, benchmark_returns, risk_free_rate, annualization_factor)
-        metrics["information_ratio"] = InformationRatio(returns, benchmark_returns, annualization_factor)
+        metrics["treynor_ratio"] = TreynorRatio(
+            returns, benchmark_returns, risk_free_rate, annualization_factor
+        )
+        metrics["information_ratio"] = InformationRatio(
+            returns, benchmark_returns, annualization_factor
+        )
 
     return metrics

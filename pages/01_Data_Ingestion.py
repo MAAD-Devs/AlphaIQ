@@ -10,24 +10,28 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import streamlit as st
 import pandas as pd
-import numpy as np
+import streamlit as st
 
-from portfolio_optimizer.core.data_models import Portfolio, Asset, AssetClass
+from portfolio_optimizer.core.data_models import Asset, AssetClass, Portfolio
 from utils.state_management import (
+    PRESET_TEMPLATES,
+    fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
-    fetch_and_cache_market_data,
-    PRESET_TEMPLATES,
     load_portfolio_template,
 )
 
-st.set_page_config(page_title="01 Data Ingestion - Portfolio Entry", page_icon="📥", layout="wide")
+st.set_page_config(
+    page_title="01 Data Ingestion - Portfolio Entry", page_icon="📥", layout="wide"
+)
 inject_custom_css()
 init_session_state()
 
-st.markdown('<div class="gradient-header">01 Portfolio Entry & Data Ingestion</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="gradient-header">01 Portfolio Entry & Data Ingestion</div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="gradient-subtext">Manage user portfolio holdings, configure fee drags, and inspect market data quality.</div>',
     unsafe_allow_html=True,
@@ -36,7 +40,9 @@ st.markdown(
 portfolio = st.session_state.portfolio
 
 # --- Tab Layout ---
-tab_entry, tab_inspection, tab_presets = st.tabs(["Portfolio Data Entry", "Market Data Inspection", "Presets & Templates"])
+tab_entry, tab_inspection, tab_presets = st.tabs(
+    ["Portfolio Data Entry", "Market Data Inspection", "Presets & Templates"]
+)
 
 with tab_entry:
     st.subheader("Current Portfolio Holdings")
@@ -58,20 +64,22 @@ with tab_entry:
     # Build editable table representation
     asset_rows = []
     for asset, val in portfolio.asset_values.items():
-        asset_rows.append({
-            "Ticker": asset.ticker,
-            "Asset Class": asset.asset_class.value,
-            "Name": asset.name,
-            "Dollar Value ($)": float(val),
-            "Annual Drag (bps)": float(asset.annual_drag * 10000),
-        })
+        asset_rows.append(
+            {
+                "Ticker": asset.ticker,
+                "Asset Class": asset.asset_class.value,
+                "Name": asset.name,
+                "Dollar Value ($)": float(val),
+                "Annual Drag (bps)": float(asset.annual_drag * 10000),
+            }
+        )
 
     df_editable = pd.DataFrame(asset_rows)
 
     edited_df = st.data_editor(
         df_editable,
         num_rows="dynamic",
-        width='stretch',
+        width="stretch",
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker (e.g. AAPL)", required=True),
             "Asset Class": st.column_config.SelectboxColumn(
@@ -80,8 +88,12 @@ with tab_entry:
                 required=True,
             ),
             "Name": st.column_config.TextColumn("Asset Description"),
-            "Dollar Value ($)": st.column_config.NumberColumn("Dollar Value ($)", min_value=0.0, format="$%.2f"),
-            "Annual Drag (bps)": st.column_config.NumberColumn("Expense Drag (bps)", min_value=0.0, format="%.1f bps"),
+            "Dollar Value ($)": st.column_config.NumberColumn(
+                "Dollar Value ($)", min_value=0.0, format="$%.2f"
+            ),
+            "Annual Drag (bps)": st.column_config.NumberColumn(
+                "Expense Drag (bps)", min_value=0.0, format="%.1f bps"
+            ),
         },
         key="portfolio_table_editor",
     )
@@ -131,7 +143,9 @@ with tab_inspection:
         returns_df = st.session_state.returns_df
 
         st.write(f"**Loaded Tickers**: {list(returns_df.columns)}")
-        st.write(f"**Date Range**: {returns_df.index.min().strftime('%Y-%m-%d')} to {returns_df.index.max().strftime('%Y-%m-%d')} ({len(returns_df)} observations)")
+        st.write(
+            f"**Date Range**: {returns_df.index.min().strftime('%Y-%m-%d')} to {returns_df.index.max().strftime('%Y-%m-%d')} ({len(returns_df)} observations)"
+        )
 
         col_q1, col_q2, col_q3 = st.columns(3)
         with col_q1:
@@ -139,13 +153,16 @@ with tab_inspection:
         with col_q2:
             st.metric("Daily Return Std Dev", f"{returns_df.std().mean() * 100:.2f}%")
         with col_q3:
-            st.metric("Avg Annualized Return", f"{returns_df.mean().mean() * 252 * 100:.2f}%")
+            st.metric(
+                "Avg Annualized Return", f"{returns_df.mean().mean() * 252 * 100:.2f}%"
+            )
 
         st.markdown("### Normalized Historical Price Performance (Base 100)")
         norm_prices = (prices_df / prices_df.iloc[0]) * 100.0
 
         try:
             import plotly.express as px
+
             fig_prices = px.line(
                 norm_prices,
                 x=norm_prices.index,
@@ -159,7 +176,7 @@ with tab_inspection:
                 plot_bgcolor="rgba(0,0,0,0)",
                 hovermode="x unified",
             )
-            st.plotly_chart(fig_prices, width='stretch')
+            st.plotly_chart(fig_prices, width="stretch")
         except ImportError:
             st.line_chart(norm_prices)
 
@@ -169,18 +186,22 @@ with tab_presets:
 
     for key, info in PRESET_TEMPLATES.items():
         st.markdown(f"#### {key}")
-        st.write(f"**Name**: {info['name']} | **Account Drag**: {info['account_drag']*10000:.0f} bps")
+        st.write(
+            f"**Name**: {info['name']} | **Account Drag**: {info['account_drag'] * 10000:.0f} bps"
+        )
 
-        p_df = pd.DataFrame([
-            {
-                "Ticker": a.ticker,
-                "Class": a.asset_class.value,
-                "Name": a.name,
-                "Value ($)": v,
-            }
-            for a, v in zip(info["assets"], info["values"])
-        ])
-        st.dataframe(p_df, width='stretch')
+        p_df = pd.DataFrame(
+            [
+                {
+                    "Ticker": a.ticker,
+                    "Class": a.asset_class.value,
+                    "Name": a.name,
+                    "Value ($)": v,
+                }
+                for a, v in zip(info["assets"], info["values"])
+            ]
+        )
+        st.dataframe(p_df, width="stretch")
 
         if st.button(f"Load {key} Template", key=f"btn_load_{key}"):
             st.session_state.portfolio = load_portfolio_template(key)

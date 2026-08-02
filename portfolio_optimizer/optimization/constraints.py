@@ -2,10 +2,12 @@
 Constraint builder and manager: Linear constraints, sector caps, Beta caps, and fee drag adjustments.
 """
 
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
-from ..core.data_models import Portfolio, Asset, AssetClass
+
+from ..core.data_models import Asset, AssetClass, Portfolio
 
 
 class PortfolioConstraints:
@@ -16,8 +18,8 @@ class PortfolioConstraints:
 
     def __init__(
         self,
-        asset_bounds: Optional[Dict[str, Tuple[float, float]]] = None,
-        sector_caps: Optional[Dict[str, float]] = None,
+        asset_bounds: Optional[dict[str, tuple[float, float]]] = None,
+        sector_caps: Optional[dict[str, float]] = None,
         max_beta: Optional[float] = None,
         fee_drag_bps: float = 10.0,
     ):
@@ -26,7 +28,9 @@ class PortfolioConstraints:
         self.max_beta = max_beta
         self.fee_drag_bps = fee_drag_bps
 
-    def build_scipy_bounds(self, tickers: List[str], default_min: float = 0.0, default_max: float = 1.0) -> Tuple[Tuple[float, float], ...]:
+    def build_scipy_bounds(
+        self, tickers: list[str], default_min: float = 0.0, default_max: float = 1.0
+    ) -> tuple[tuple[float, float], ...]:
         """Generates SciPy solver bounds tuple for each ticker."""
         bounds = []
         for ticker in tickers:
@@ -35,34 +39,37 @@ class PortfolioConstraints:
         return tuple(bounds)
 
     def build_sector_constraints(
-        self, tickers: List[str], asset_sectors: Dict[str, str]
-    ) -> List[Dict[str, Any]]:
+        self, tickers: list[str], asset_sectors: dict[str, str]
+    ) -> list[dict[str, Any]]:
         """
         Generates linear inequality constraints for sector allocation caps.
         Sum(w_i for i in sector) <= cap
         """
         constraints = []
         for sector, cap in self.sector_caps.items():
-            mask = np.array([1.0 if asset_sectors.get(t) == sector else 0.0 for t in tickers])
-            constraints.append({
-                'type': 'ineq',
-                'fun': lambda w, m=mask, c=cap: c - np.sum(w * m)
-            })
+            mask = np.array(
+                [1.0 if asset_sectors.get(t) == sector else 0.0 for t in tickers]
+            )
+            constraints.append(
+                {"type": "ineq", "fun": lambda w, m=mask, c=cap: c - np.sum(w * m)}
+            )
         return constraints
 
     def build_sector_constraints_from_portfolio(
         self, portfolio: Portfolio
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generates sector constraints directly from a Portfolio object's asset classes.
         """
         tickers = portfolio.tickers
-        asset_sectors = {asset.ticker: asset.asset_class.value for asset in portfolio.asset_values}
+        asset_sectors = {
+            asset.ticker: asset.asset_class.value for asset in portfolio.asset_values
+        }
         return self.build_sector_constraints(tickers, asset_sectors)
 
     def build_beta_constraint(
-        self, tickers: List[str], asset_betas: Dict[str, float]
-    ) -> Optional[Dict[str, Any]]:
+        self, tickers: list[str], asset_betas: dict[str, float]
+    ) -> Optional[dict[str, Any]]:
         """
         Generates linear inequality constraint for overall portfolio Beta cap vs benchmark.
         Sum(w_i * Beta_i) <= max_beta
@@ -72,11 +79,16 @@ class PortfolioConstraints:
 
         beta_vec = np.array([asset_betas.get(t, 1.0) for t in tickers])
         return {
-            'type': 'ineq',
-            'fun': lambda w, b=beta_vec, cap=self.max_beta: cap - np.sum(w * b)
+            "type": "ineq",
+            "fun": lambda w, b=beta_vec, cap=self.max_beta: cap - np.sum(w * b),
         }
 
-    def apply_fee_drag(self, expected_returns: pd.Series, turnover: Optional[float] = None, portfolio: Optional[Portfolio] = None) -> pd.Series:
+    def apply_fee_drag(
+        self,
+        expected_returns: pd.Series,
+        turnover: Optional[float] = None,
+        portfolio: Optional[Portfolio] = None,
+    ) -> pd.Series:
         """
         Adjusts expected returns series by subtracting fee drag basis points, asset annual drag, and turnover cost.
         """
@@ -89,7 +101,7 @@ class PortfolioConstraints:
 
         adjusted_returns = expected_returns - fee_drag_decimal
         if turnover is not None:
-            adjusted_returns -= (turnover * (self.fee_drag_bps / 10000.0))
+            adjusted_returns -= turnover * (self.fee_drag_bps / 10000.0)
         return adjusted_returns
 
 
@@ -97,7 +109,9 @@ if __name__ == "__main__":
     print("Testing PortfolioConstraints...")
 
     aapl = Asset("AAPL", AssetClass.EQUITY, "Apple Inc.", annual_drag=0.0)
-    bnd = Asset("BND", AssetClass.BOND, "Vanguard Total Bond Market ETF", annual_drag=0.0003)
+    bnd = Asset(
+        "BND", AssetClass.BOND, "Vanguard Total Bond Market ETF", annual_drag=0.0003
+    )
 
     user_portfolio = Portfolio(
         name="Test Portfolio",
@@ -116,11 +130,12 @@ if __name__ == "__main__":
     bounds = constraints.build_scipy_bounds(tickers)
     print("SciPy Bounds:", bounds)
 
-    sector_constraints = constraints.build_sector_constraints_from_portfolio(user_portfolio)
+    sector_constraints = constraints.build_sector_constraints_from_portfolio(
+        user_portfolio
+    )
     print("Sector Constraints Count:", len(sector_constraints))
 
     raw_returns = pd.Series([0.12, 0.04], index=tickers)
     adjusted_returns = constraints.apply_fee_drag(raw_returns, portfolio=user_portfolio)
     print("Raw Returns:\n", raw_returns.to_dict())
     print("Adjusted Returns:\n", adjusted_returns.to_dict())
-

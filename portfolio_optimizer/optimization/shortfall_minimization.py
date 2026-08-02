@@ -2,7 +2,8 @@
 Shortfall minimization optimizer targeting CVaR (Expected Shortfall) and CDaR (Conditional Drawdown at Risk).
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -12,9 +13,9 @@ try:
 except ImportError:
     rp = None
 
-from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult, Portfolio, Asset
 from ..analytics.tail_risk import ConditionalVaR, MaximumDrawdown
+from ..core.data_models import Asset, OptimizationResult, Portfolio
+from .base_optimizer import BasePortfolioOptimizer
 
 
 class ShortfallMinimizationOptimizer(BasePortfolioOptimizer):
@@ -50,11 +51,19 @@ class ShortfallMinimizationOptimizer(BasePortfolioOptimizer):
                 port = rp.Portfolio(returns=returns)
                 port.assets_stats(method_mu="hist", method_cov="hist")
                 rm_choice = "CVaR" if self.risk_measure == "CVaR" else "CDaR"
-                w_df = port.optimization(model="Classic", rm=rm_choice, obj="MinRisk", rf=self.risk_free_rate, alpha=1 - self.alpha)
+                w_df = port.optimization(
+                    model="Classic",
+                    rm=rm_choice,
+                    obj="MinRisk",
+                    rf=self.risk_free_rate,
+                    alpha=1 - self.alpha,
+                )
                 if w_df is not None:
                     w = w_df.values.flatten()
                     w_dict = dict(zip(tickers, w))
-                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
+                    stats = self.compute_summary_stats(
+                        w, returns.mean(), returns.cov(), fee_drag=total_drag
+                    )
                     return OptimizationResult(
                         method=f"ShortfallMinimization_{self.risk_measure}_Riskfolio",
                         weights=w_dict,
@@ -64,7 +73,9 @@ class ShortfallMinimizationOptimizer(BasePortfolioOptimizer):
                         status="Optimal",
                     )
             except Exception as e:
-                print(f"Riskfolio Shortfall Optimization failed, using scipy fallback: {e}")
+                print(
+                    f"Riskfolio Shortfall Optimization failed, using scipy fallback: {e}"
+                )
 
         r_matrix = returns.values
 
@@ -78,14 +89,18 @@ class ShortfallMinimizationOptimizer(BasePortfolioOptimizer):
 
         init_w = np.full(n, 1.0 / n)
         bounds = tuple((0.0, 1.0) for _ in range(n))
-        constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0})
+        constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1.0}
 
-        res = minimize(obj_func, init_w, bounds=bounds, constraints=constraints, method='SLSQP')
+        res = minimize(
+            obj_func, init_w, bounds=bounds, constraints=constraints, method="SLSQP"
+        )
         w = res.x if res.success else init_w
         w = w / np.sum(w)
         w_dict = dict(zip(tickers, w))
 
-        stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
+        stats = self.compute_summary_stats(
+            w, returns.mean(), returns.cov(), fee_drag=total_drag
+        )
         return OptimizationResult(
             method=f"ShortfallMinimization_{self.risk_measure}",
             weights=w_dict,
@@ -120,7 +135,9 @@ if __name__ == "__main__":
     print("Testing ShortfallMinimizationOptimizer...")
 
     # Test CVaR
-    cvar_opt = ShortfallMinimizationOptimizer(risk_measure="CVaR", alpha=0.95, risk_free_rate=0.04)
+    cvar_opt = ShortfallMinimizationOptimizer(
+        risk_measure="CVaR", alpha=0.95, risk_free_rate=0.04
+    )
     res_cvar = cvar_opt.optimize(mock_returns, portfolio=user_portfolio)
     print("\n--- CVaR Minimization ---")
     print(f"Method: {res_cvar.method}")
@@ -131,7 +148,9 @@ if __name__ == "__main__":
     print("Weights:", {k: round(v, 4) for k, v in res_cvar.weights.items()})
 
     # Test CDaR
-    cdar_opt = ShortfallMinimizationOptimizer(risk_measure="CDaR", alpha=0.95, risk_free_rate=0.04)
+    cdar_opt = ShortfallMinimizationOptimizer(
+        risk_measure="CDaR", alpha=0.95, risk_free_rate=0.04
+    )
     res_cdar = cdar_opt.optimize(mock_returns, portfolio=user_portfolio)
     print("\n--- CDaR Minimization ---")
     print(f"Method: {res_cdar.method}")
@@ -140,4 +159,3 @@ if __name__ == "__main__":
     print(f"Volatility: {res_cdar.volatility:.4f}")
     print(f"Sharpe Ratio: {res_cdar.sharpe_ratio:.4f}")
     print("Weights:", {k: round(v, 4) for k, v in res_cdar.weights.items()})
-

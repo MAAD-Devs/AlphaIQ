@@ -3,9 +3,10 @@ FRED API wrapper for fetching macroeconomic series (Treasury yields, Inflation b
 """
 
 import os
-from typing import Dict, Optional, Union, List
-import pandas as pd
+from typing import List, Optional
+
 import numpy as np
+import pandas as pd
 
 try:
     from fredapi import Fred
@@ -51,7 +52,9 @@ class MacroDataLoader:
 
         if self.fred is not None:
             try:
-                s = self.fred.get_series(series_code, observation_start=start_date, observation_end=end_date)
+                s = self.fred.get_series(
+                    series_code, observation_start=start_date, observation_end=end_date
+                )
                 s = s.ffill().bfill()
                 s.name = series_code
                 return s
@@ -59,7 +62,11 @@ class MacroDataLoader:
                 print(f"Warning: FRED API error for {series_code}: {e}")
 
         # Fallback if FRED API key is not present or failed: return sample placeholder structure
-        dates = pd.date_range(start=start_date or "2020-01-01", end=end_date or pd.Timestamp.now(), freq="B")
+        dates = pd.date_range(
+            start=start_date or "2020-01-01",
+            end=end_date or pd.Timestamp.now(),
+            freq="B",
+        )
         base_val = 0.04 if "DGS" in series_code or "T10" in series_code else 0.02
         noise = np.random.normal(0, 0.0005, size=len(dates)).cumsum()
         s = pd.Series(base_val + noise, index=dates, name=series_code)
@@ -81,7 +88,9 @@ class MacroDataLoader:
         df = pd.DataFrame(data).ffill().bfill()
         return df
 
-    def get_treasury_yield_curve(self, start_date: Optional[str] = None) -> pd.DataFrame:
+    def get_treasury_yield_curve(
+        self, start_date: Optional[str] = None
+    ) -> pd.DataFrame:
         """
         Fetches 3M, 2Y, and 10Y Treasury yield series.
         """
@@ -90,7 +99,9 @@ class MacroDataLoader:
             start_date=start_date,
         )
 
-    def get_inflation_breakevens(self, start_date: Optional[str] = None) -> pd.DataFrame:
+    def get_inflation_breakevens(
+        self, start_date: Optional[str] = None
+    ) -> pd.DataFrame:
         """
         Fetches 5-Year and 10-Year TIPS Inflation Breakeven rates.
         """

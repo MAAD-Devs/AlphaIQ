@@ -10,18 +10,16 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import streamlit as st
 import pandas as pd
-import numpy as np
+import streamlit as st
 
 # Import domain models and state management
-from portfolio_optimizer.core.data_models import Portfolio, Asset, AssetClass
 from utils.state_management import (
+    PRESET_TEMPLATES,
+    fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
     load_portfolio_template,
-    fetch_and_cache_market_data,
-    PRESET_TEMPLATES,
 )
 
 # Configure Streamlit page
@@ -81,7 +79,10 @@ if st.sidebar.button("🔄 Refresh Market Data"):
     st.rerun()
 
 # --- Header Section ---
-st.markdown('<div class="gradient-header">Quantitative Portfolio Optimizer</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="gradient-header">Quantitative Portfolio Optimizer</div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="gradient-subtext">Institutional-grade risk hedging, Bayesian allocation, and out-of-sample backtesting dashboard.</div>',
     unsafe_allow_html=True,
@@ -169,7 +170,7 @@ with left_col:
                 plot_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20),
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, width="stretch")
         except ImportError:
             st.bar_chart(df_weights.set_index("Ticker")["Weight (%)"])
 
@@ -181,7 +182,7 @@ with left_col:
                     "Annual Expense Drag (%)": "{:.3f}%",
                 }
             ),
-            width='stretch',
+            width="stretch",
         )
 
 with right_col:
@@ -197,7 +198,9 @@ with right_col:
         """
     )
 
-    st.info("💡 **Quick Tip**: Navigate to **01 Data Ingestion** to modify your holdings or add new tickers to your custom portfolio!")
+    st.info(
+        "💡 **Quick Tip**: Navigate to **01 Data Ingestion** to modify your holdings or add new tickers to your custom portfolio!"
+    )
 
 st.markdown("---")
 

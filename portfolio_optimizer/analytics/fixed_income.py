@@ -2,7 +2,8 @@
 Fixed income analytics: Duration, Convexity, TIPS Inflation Breakeven, and Svensson (SVF) Yield Curve smoothing.
 """
 
-from typing import Dict, List, Tuple, Union, Optional
+from typing import List, Union
+
 import numpy as np
 from scipy.optimize import minimize
 
@@ -15,7 +16,11 @@ class BondAnalytics:
 
     @staticmethod
     def bond_price(
-        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+        face_value: float,
+        coupon_rate: float,
+        ytm: float,
+        years_to_maturity: float,
+        freq: int = 2,
     ) -> float:
         """Calculates present value of a coupon-bearing bond."""
         periods = int(years_to_maturity * freq)
@@ -32,10 +37,16 @@ class BondAnalytics:
 
     @staticmethod
     def macaulay_duration(
-        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+        face_value: float,
+        coupon_rate: float,
+        ytm: float,
+        years_to_maturity: float,
+        freq: int = 2,
     ) -> float:
         """Calculates Macaulay Duration in years."""
-        price = BondAnalytics.bond_price(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        price = BondAnalytics.bond_price(
+            face_value, coupon_rate, ytm, years_to_maturity, freq
+        )
         if price == 0:
             return 0.0
 
@@ -54,18 +65,30 @@ class BondAnalytics:
 
     @staticmethod
     def modified_duration(
-        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+        face_value: float,
+        coupon_rate: float,
+        ytm: float,
+        years_to_maturity: float,
+        freq: int = 2,
     ) -> float:
         """Calculates Modified Duration."""
-        mac_dur = BondAnalytics.macaulay_duration(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        mac_dur = BondAnalytics.macaulay_duration(
+            face_value, coupon_rate, ytm, years_to_maturity, freq
+        )
         return float(mac_dur / (1 + (ytm / freq)))
 
     @staticmethod
     def convexity(
-        face_value: float, coupon_rate: float, ytm: float, years_to_maturity: float, freq: int = 2
+        face_value: float,
+        coupon_rate: float,
+        ytm: float,
+        years_to_maturity: float,
+        freq: int = 2,
     ) -> float:
         """Calculates Bond Convexity."""
-        price = BondAnalytics.bond_price(face_value, coupon_rate, ytm, years_to_maturity, freq)
+        price = BondAnalytics.bond_price(
+            face_value, coupon_rate, ytm, years_to_maturity, freq
+        )
         if price == 0:
             return 0.0
 
@@ -79,7 +102,9 @@ class BondAnalytics:
         cash_flows = np.full(periods, c)
         cash_flows[-1] += face_value
 
-        weighted_pv = np.sum(cash_flows * t_times * (t_times + 1 / freq) * discount_factors)
+        weighted_pv = np.sum(
+            cash_flows * t_times * (t_times + 1 / freq) * discount_factors
+        )
         return float(weighted_pv / price)
 
     @staticmethod
@@ -111,7 +136,9 @@ class SVFYieldCurve:
         self.params = [beta0, beta1, beta2, beta3, tau1, tau2]
 
     @staticmethod
-    def yield_svf(m: Union[float, np.ndarray], params: List[float]) -> Union[float, np.ndarray]:
+    def yield_svf(
+        m: Union[float, np.ndarray], params: List[float]
+    ) -> Union[float, np.ndarray]:
         beta0, beta1, beta2, beta3, tau1, tau2 = params
         m = np.maximum(m, 1e-4)
 

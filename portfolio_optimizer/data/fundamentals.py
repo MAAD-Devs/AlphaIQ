@@ -2,9 +2,9 @@
 FinanceToolkit integration for extracting financial fundamentals, including REIT FFO, NAV, and Debt/Assets.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import List, Optional
+
 import pandas as pd
-import numpy as np
 
 try:
     from financetoolkit import Toolkit
@@ -36,15 +36,17 @@ class FundamentalsLoader:
         # Fallback / Scaffolding data structure
         records = []
         for ticker in tickers:
-            records.append({
-                "ticker": ticker,
-                "pe_ratio": 18.5,
-                "pb_ratio": 2.3,
-                "debt_to_assets": 0.45,
-                "roe": 0.15,
-                "current_ratio": 1.4,
-                "dividend_yield": 0.032,
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "pe_ratio": 18.5,
+                    "pb_ratio": 2.3,
+                    "debt_to_assets": 0.45,
+                    "roe": 0.15,
+                    "current_ratio": 1.4,
+                    "dividend_yield": 0.032,
+                }
+            )
         return pd.DataFrame(records).set_index("ticker")
 
     def fetch_reit_fundamentals(self, tickers: List[str]) -> pd.DataFrame:
@@ -59,12 +61,14 @@ class FundamentalsLoader:
             debt_to_assets = 0.38
             affo_payout_ratio = 0.72
 
-            records.append({
-                "ticker": ticker,
-                "ffo_per_share": estimated_ffo_per_share,
-                "nav_per_share": estimated_nav_per_share,
-                "debt_to_assets": debt_to_assets,
-                "affo_payout_ratio": affo_payout_ratio,
-                "implied_cap_rate": 0.058,
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "ffo_per_share": estimated_ffo_per_share,
+                    "nav_per_share": estimated_nav_per_share,
+                    "debt_to_assets": debt_to_assets,
+                    "affo_payout_ratio": affo_payout_ratio,
+                    "implied_cap_rate": 0.058,
+                }
+            )
         return pd.DataFrame(records).set_index("ticker")

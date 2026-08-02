@@ -2,7 +2,8 @@
 Annuity analytics: Participation/Cap payoffs and Monte Carlo option pricing.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
+
 import numpy as np
 
 
@@ -84,13 +85,17 @@ class AnnuityMonteCarloPricer:
         """
         Prices a 1-year annual reset Fixed Indexed Annuity contract over a multi-year horizon.
         """
-        paths = self.simulate_paths(years=years, steps_per_year=252, n_simulations=n_simulations)
+        paths = self.simulate_paths(
+            years=years, steps_per_year=252, n_simulations=n_simulations
+        )
         # Annual price checkpoints
         annual_indices = [int(i * 252) for i in range(years + 1)]
         annual_prices = paths[:, annual_indices]
 
         # Calculate annual index returns
-        annual_returns = (annual_prices[:, 1:] - annual_prices[:, :-1]) / annual_prices[:, :-1]
+        annual_returns = (annual_prices[:, 1:] - annual_prices[:, :-1]) / annual_prices[
+            :, :-1
+        ]
 
         # Apply crediting strategy for each year
         credited_returns = np.zeros_like(annual_returns)
@@ -114,5 +119,7 @@ class AnnuityMonteCarloPricer:
             "pv_expected_value": float(np.mean(pv_account_values)),
             "5th_percentile_value": float(np.percentile(account_values, 5)),
             "95th_percentile_value": float(np.percentile(account_values, 95)),
-            "mean_annualized_credited_return": float(np.mean(np.mean(credited_returns, axis=1))),
+            "mean_annualized_credited_return": float(
+                np.mean(np.mean(credited_returns, axis=1))
+            ),
         }

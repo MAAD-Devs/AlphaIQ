@@ -10,31 +10,34 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
 
-from portfolio_optimizer.core.data_models import Portfolio, Asset, AssetClass, OptimizationResult
 from portfolio_optimizer.optimization import (
-    MeanVarianceOptimizer,
-    RiskParityOptimizer,
     BlackLittermanOptimizer,
     HierarchicalRiskParityOptimizer,
     KellyCriterionOptimizer,
+    MeanVarianceOptimizer,
+    RiskParityOptimizer,
     ShortfallMinimizationOptimizer,
-    PortfolioConstraints,
 )
 from utils.state_management import (
+    fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
-    fetch_and_cache_market_data,
 )
 
-st.set_page_config(page_title="03 Optimization - Portfolio Solvers", page_icon="🎯", layout="wide")
+st.set_page_config(
+    page_title="03 Optimization - Portfolio Solvers", page_icon="🎯", layout="wide"
+)
 inject_custom_css()
 init_session_state()
 
-st.markdown('<div class="gradient-header">03 Portfolio Optimization Engine</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="gradient-header">03 Portfolio Optimization Engine</div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="gradient-subtext">Execute institutional allocation solvers: MVO, Risk Parity, Black-Litterman, HRP, Kelly Criterion, and CVaR Minimization.</div>',
     unsafe_allow_html=True,
@@ -80,8 +83,22 @@ with col_controls:
     st.markdown("---")
     st.subheader("🔒 Constraints & Parameters")
 
-    min_weight = st.slider("Min Asset Weight", min_value=0.0, max_value=0.3, value=0.0, step=0.05, format="%.2f")
-    max_weight = st.slider("Max Asset Weight", min_value=0.2, max_value=1.0, value=1.0, step=0.05, format="%.2f")
+    min_weight = st.slider(
+        "Min Asset Weight",
+        min_value=0.0,
+        max_value=0.3,
+        value=0.0,
+        step=0.05,
+        format="%.2f",
+    )
+    max_weight = st.slider(
+        "Max Asset Weight",
+        min_value=0.2,
+        max_value=1.0,
+        value=1.0,
+        step=0.05,
+        format="%.2f",
+    )
 
     # Specific Model Options
     views_P = None
@@ -91,8 +108,18 @@ with col_controls:
     if "Black-Litterman" in solver_type:
         st.info("💡 Black-Litterman View Matrix Settings")
         v_asset1 = st.selectbox("Asset View Ticker", options=portfolio_tickers, index=0)
-        v_asset2 = st.selectbox("Outperformed Ticker", options=portfolio_tickers, index=min(1, len(portfolio_tickers)-1))
-        outperform_pct = st.number_input("Expected Outperformance (%/yr)", min_value=-0.20, max_value=0.30, value=0.05, step=0.01)
+        v_asset2 = st.selectbox(
+            "Outperformed Ticker",
+            options=portfolio_tickers,
+            index=min(1, len(portfolio_tickers) - 1),
+        )
+        outperform_pct = st.number_input(
+            "Expected Outperformance (%/yr)",
+            min_value=-0.20,
+            max_value=0.30,
+            value=0.05,
+            step=0.01,
+        )
 
         idx1 = portfolio_tickers.index(v_asset1)
         idx2 = portfolio_tickers.index(v_asset2)
@@ -103,19 +130,35 @@ with col_controls:
         views_Q = np.array([outperform_pct])
 
     elif "Kelly" in solver_type:
-        kelly_frac = st.slider("Kelly Fraction (0.5 = Half-Kelly)", min_value=0.1, max_value=1.0, value=0.5, step=0.1)
+        kelly_frac = st.slider(
+            "Kelly Fraction (0.5 = Half-Kelly)",
+            min_value=0.1,
+            max_value=1.0,
+            value=0.5,
+            step=0.1,
+        )
 
-    btn_run = st.button("🚀 Run Optimization", width='stretch')
+    btn_run = st.button("🚀 Run Optimization", width="stretch")
 
 # Handle Optimization Execution
 if btn_run or st.session_state.optimization_result is None:
     with st.spinner("Solving optimal portfolio weights..."):
         if solver_type == "Mean-Variance (Max Sharpe)":
-            solver = MeanVarianceOptimizer(objective="MaxSharpe", min_weight=min_weight, max_weight=max_weight, risk_free_rate=rf_rate)
+            solver = MeanVarianceOptimizer(
+                objective="MaxSharpe",
+                min_weight=min_weight,
+                max_weight=max_weight,
+                risk_free_rate=rf_rate,
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         elif solver_type == "Mean-Variance (Min Volatility)":
-            solver = MeanVarianceOptimizer(objective="MinVol", min_weight=min_weight, max_weight=max_weight, risk_free_rate=rf_rate)
+            solver = MeanVarianceOptimizer(
+                objective="MinVol",
+                min_weight=min_weight,
+                max_weight=max_weight,
+                risk_free_rate=rf_rate,
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         elif solver_type == "Risk Parity (Equal Risk Contribution)":
@@ -124,26 +167,38 @@ if btn_run or st.session_state.optimization_result is None:
 
         elif solver_type == "Black-Litterman (Bayesian Views)":
             solver = BlackLittermanOptimizer(risk_free_rate=rf_rate)
-            res = solver.optimize(returns_df, portfolio=portfolio, views_P=views_P, views_Q=views_Q)
+            res = solver.optimize(
+                returns_df, portfolio=portfolio, views_P=views_P, views_Q=views_Q
+            )
 
         elif solver_type == "Hierarchical Risk Parity (HRP)":
-            solver = HierarchicalRiskParityOptimizer(method="HRP", risk_free_rate=rf_rate)
+            solver = HierarchicalRiskParityOptimizer(
+                method="HRP", risk_free_rate=rf_rate
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         elif solver_type == "Hierarchical Equal Risk (HERC)":
-            solver = HierarchicalRiskParityOptimizer(method="HERC", risk_free_rate=rf_rate)
+            solver = HierarchicalRiskParityOptimizer(
+                method="HERC", risk_free_rate=rf_rate
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         elif solver_type == "Kelly Criterion (CAGR Growth)":
-            solver = KellyCriterionOptimizer(fraction=kelly_frac, risk_free_rate=rf_rate)
+            solver = KellyCriterionOptimizer(
+                fraction=kelly_frac, risk_free_rate=rf_rate
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         elif solver_type == "Shortfall Minimization (CVaR 95%)":
-            solver = ShortfallMinimizationOptimizer(risk_measure="CVaR", alpha=0.95, risk_free_rate=rf_rate)
+            solver = ShortfallMinimizationOptimizer(
+                risk_measure="CVaR", alpha=0.95, risk_free_rate=rf_rate
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         else:  # CDaR
-            solver = ShortfallMinimizationOptimizer(risk_measure="CDaR", alpha=0.95, risk_free_rate=rf_rate)
+            solver = ShortfallMinimizationOptimizer(
+                risk_measure="CDaR", alpha=0.95, risk_free_rate=rf_rate
+            )
             res = solver.optimize(returns_df, portfolio=portfolio)
 
         st.session_state.optimization_result = res
@@ -179,14 +234,16 @@ with col_results:
         val_opt = w_opt * total_val
         diff_val = val_opt - val_curr
 
-        rows.append({
-            "Ticker": ticker,
-            "Current Weight (%)": w_curr * 100,
-            "Optimized Weight (%)": w_opt * 100,
-            "Current Value ($)": val_curr,
-            "Optimized Value ($)": val_opt,
-            "Rebalance Action ($)": diff_val,
-        })
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Current Weight (%)": w_curr * 100,
+                "Optimized Weight (%)": w_opt * 100,
+                "Current Value ($)": val_curr,
+                "Optimized Value ($)": val_opt,
+                "Rebalance Action ($)": diff_val,
+            }
+        )
 
     df_comp = pd.DataFrame(rows)
 
@@ -195,8 +252,22 @@ with col_results:
         import plotly.graph_objects as go
 
         fig_bar = go.Figure()
-        fig_bar.add_trace(go.Bar(x=df_comp["Ticker"], y=df_comp["Current Weight (%)"], name="Current Weight (%)", marker_color="#6366f1"))
-        fig_bar.add_trace(go.Bar(x=df_comp["Ticker"], y=df_comp["Optimized Weight (%)"], name="Optimized Weight (%)", marker_color="#10b981"))
+        fig_bar.add_trace(
+            go.Bar(
+                x=df_comp["Ticker"],
+                y=df_comp["Current Weight (%)"],
+                name="Current Weight (%)",
+                marker_color="#6366f1",
+            )
+        )
+        fig_bar.add_trace(
+            go.Bar(
+                x=df_comp["Ticker"],
+                y=df_comp["Optimized Weight (%)"],
+                name="Optimized Weight (%)",
+                marker_color="#10b981",
+            )
+        )
         fig_bar.update_layout(
             barmode="group",
             title="Current vs Optimized Allocation Weights",
@@ -204,9 +275,11 @@ with col_results:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_bar, width='stretch')
+        st.plotly_chart(fig_bar, width="stretch")
     except ImportError:
-        st.bar_chart(df_comp.set_index("Ticker")[["Current Weight (%)", "Optimized Weight (%)"]])
+        st.bar_chart(
+            df_comp.set_index("Ticker")[["Current Weight (%)", "Optimized Weight (%)"]]
+        )
 
     st.subheader("📋 Detailed Rebalancing Trade Schedule")
     st.dataframe(
@@ -219,10 +292,14 @@ with col_results:
                 "Rebalance Action ($)": "${:+,.2f}",
             }
         ),
-        width='stretch',
+        width="stretch",
     )
 
-    if st.button("✅ Apply Rebalanced Weights to Active Portfolio", type="primary", width='stretch'):
+    if st.button(
+        "✅ Apply Rebalanced Weights to Active Portfolio",
+        type="primary",
+        width="stretch",
+    ):
         new_portfolio = res.to_portfolio(
             name=f"{portfolio.name} (Optimized - {res.method})",
             total_value=total_val,

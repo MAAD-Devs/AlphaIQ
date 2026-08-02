@@ -10,24 +10,39 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
 
-from portfolio_optimizer.analytics.risk_metrics import SharpeRatio, SortinoRatio, TreynorRatio, InformationRatio, compute_all_risk_metrics
-from portfolio_optimizer.analytics.tail_risk import ValueAtRisk, ConditionalVaR, MaximumDrawdown, CalmarRatio, UlcerIndex
 from portfolio_optimizer.analytics.factor_models import MarcenkoPasturDenoiser
+from portfolio_optimizer.analytics.risk_metrics import (
+    SharpeRatio,
+    SortinoRatio,
+    compute_all_risk_metrics,
+)
+from portfolio_optimizer.analytics.tail_risk import (
+    CalmarRatio,
+    ConditionalVaR,
+    MaximumDrawdown,
+    UlcerIndex,
+    ValueAtRisk,
+)
 from utils.state_management import (
+    fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
-    fetch_and_cache_market_data,
 )
 
-st.set_page_config(page_title="02 Analytics - Risk Diagnostics", page_icon="📊", layout="wide")
+st.set_page_config(
+    page_title="02 Analytics - Risk Diagnostics", page_icon="📊", layout="wide"
+)
 inject_custom_css()
 init_session_state()
 
-st.markdown('<div class="gradient-header">02 Quantitative Risk & Diagnostics</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="gradient-header">02 Quantitative Risk & Diagnostics</div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="gradient-subtext">Deep-dive performance ratios, tail-risk metrics, correlation denoising, and drawdown analytics.</div>',
     unsafe_allow_html=True,
@@ -56,7 +71,9 @@ if np.sum(weights_arr) > 0:
 
 # Compute portfolio daily return series
 portfolio_daily_returns = returns_df.values @ weights_arr
-port_series = pd.Series(portfolio_daily_returns, index=returns_df.index, name=portfolio.name)
+port_series = pd.Series(
+    portfolio_daily_returns, index=returns_df.index, name=portfolio.name
+)
 
 # --- Top  Performance Ratios ---
 st.subheader("📌 Executive Risk & Return Metrics")
@@ -83,12 +100,14 @@ with col5:
 st.markdown("---")
 
 # --- Tab Layout ---
-tab_breakdown, tab_tailrisk, tab_correlation, tab_denoise = st.tabs([
-    "📈 Asset-Level Breakdown",
-    "⚠️ Tail Risk & Drawdowns",
-    "🔥 Asset Correlation Matrix",
-    "🧠 Random Matrix Denoising",
-])
+tab_breakdown, tab_tailrisk, tab_correlation, tab_denoise = st.tabs(
+    [
+        "📈 Asset-Level Breakdown",
+        "⚠️ Tail Risk & Drawdowns",
+        "🔥 Asset Correlation Matrix",
+        "🧠 Random Matrix Denoising",
+    ]
+)
 
 with tab_breakdown:
     st.subheader("Per-Asset Quantitative Diagnostics")
@@ -96,16 +115,32 @@ with tab_breakdown:
     metrics_list = []
     for ticker in portfolio_tickers:
         s = returns_df[ticker]
-        stats = compute_all_risk_metrics(s, benchmark_returns=benchmark_series, risk_free_rate=rf_rate)
+        stats = compute_all_risk_metrics(
+            s, benchmark_returns=benchmark_series, risk_free_rate=rf_rate
+        )
         stats["Ticker"] = ticker
-        stats["Asset Class"] = next((a.asset_class.value for a in portfolio.asset_values if a.ticker == ticker), "Unknown")
+        stats["Asset Class"] = next(
+            (a.asset_class.value for a in portfolio.asset_values if a.ticker == ticker),
+            "Unknown",
+        )
         stats["Portfolio Weight (%)"] = portfolio.weights.get(ticker, 0.0) * 100
         metrics_list.append(stats)
 
     df_metrics = pd.DataFrame(metrics_list)
 
     # Reorder columns
-    cols_order = ["Ticker", "Asset Class", "Portfolio Weight (%)", "Annualized Return", "Annualized Volatility", "Sharpe Ratio", "Sortino Ratio", "Max Drawdown", "VaR 95%", "CVaR 95%"]
+    cols_order = [
+        "Ticker",
+        "Asset Class",
+        "Portfolio Weight (%)",
+        "Annualized Return",
+        "Annualized Volatility",
+        "Sharpe Ratio",
+        "Sortino Ratio",
+        "Max Drawdown",
+        "VaR 95%",
+        "CVaR 95%",
+    ]
     cols_present = [c for c in cols_order if c in df_metrics.columns]
     df_metrics = df_metrics[cols_present]
 
@@ -122,7 +157,7 @@ with tab_breakdown:
                 "CVaR 95%": "{:.2f}%",
             }
         ),
-        width='stretch',
+        width="stretch",
     )
 
 with tab_tailrisk:
@@ -132,7 +167,9 @@ with tab_tailrisk:
     with c_t1:
         st.metric("Value at Risk (99%)", f"{ValueAtRisk(port_series, 0.99) * 100:.2f}%")
     with c_t2:
-        st.metric("Conditional VaR (99%)", f"{ConditionalVaR(port_series, 0.99) * 100:.2f}%")
+        st.metric(
+            "Conditional VaR (99%)", f"{ConditionalVaR(port_series, 0.99) * 100:.2f}%"
+        )
     with c_t3:
         st.metric("Calmar Ratio", f"{CalmarRatio(port_series):.2f}")
     with c_t4:
@@ -145,6 +182,7 @@ with tab_tailrisk:
 
     try:
         import plotly.express as px
+
         fig_dd = px.area(
             drawdown,
             x=drawdown.index,
@@ -158,7 +196,7 @@ with tab_tailrisk:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_dd, width='stretch')
+        st.plotly_chart(fig_dd, width="stretch")
     except ImportError:
         st.area_chart(drawdown)
 
@@ -168,6 +206,7 @@ with tab_correlation:
     corr_matrix = returns_df.corr()
     try:
         import plotly.express as px
+
         fig_corr = px.imshow(
             corr_matrix,
             text_auto=".2f",
@@ -181,21 +220,27 @@ with tab_correlation:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig_corr, width='stretch')
+        st.plotly_chart(fig_corr, width="stretch")
     except ImportError:
-        st.dataframe(corr_matrix.style.background_gradient(cmap="Blues"), width='stretch')
+        st.dataframe(
+            corr_matrix.style.background_gradient(cmap="Blues"), width="stretch"
+        )
 
 with tab_denoise:
     st.subheader("Marcenko-Pastur Random Matrix Noise Denoising")
-    st.write("Filters out random sample noise from empirical covariance matrices using Random Matrix Theory (RMT).")
+    st.write(
+        "Filters out random sample noise from empirical covariance matrices using Random Matrix Theory (RMT)."
+    )
 
     q_ratio = len(returns_df) / len(portfolio_tickers)
     denoiser = MarcenkoPasturDenoiser()
     denoised_cov = denoiser.denoise_covariance(returns_df.cov().values, q_ratio)
 
-    df_denoised_cov = pd.DataFrame(denoised_cov, index=portfolio_tickers, columns=portfolio_tickers)
+    df_denoised_cov = pd.DataFrame(
+        denoised_cov, index=portfolio_tickers, columns=portfolio_tickers
+    )
     st.write("**Denoised Covariance Matrix (Annualized)**:")
-    st.dataframe((df_denoised_cov * 252).style.format("{:.4f}"), width='stretch')
+    st.dataframe((df_denoised_cov * 252).style.format("{:.4f}"), width="stretch")
 
 st.markdown("---")
 st.markdown(

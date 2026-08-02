@@ -2,10 +2,11 @@
 Hierarchical Machine Learning portfolio optimizers: HRP (Hierarchical Risk Parity) & HERC.
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import linkage, leaves_list
+from scipy.cluster.hierarchy import leaves_list, linkage
 from scipy.spatial.distance import squareform
 
 try:
@@ -13,8 +14,8 @@ try:
 except ImportError:
     rp = None
 
+from ..core.data_models import Asset, OptimizationResult, Portfolio
 from .base_optimizer import BasePortfolioOptimizer
-from ..core.data_models import OptimizationResult, Portfolio, Asset
 
 
 class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
@@ -34,7 +35,9 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
         self.method = method
         self.linkage_method = linkage_method
 
-    def _hrp_recursive_bisection(self, cov: np.ndarray, sorted_indices: list) -> np.ndarray:
+    def _hrp_recursive_bisection(
+        self, cov: np.ndarray, sorted_indices: list
+    ) -> np.ndarray:
         """Applies recursive bisection algorithm on ordered assets tree."""
         weights = pd.Series(1.0, index=sorted_indices)
         clusters = [sorted_indices]
@@ -65,7 +68,7 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
 
                 alpha = 1.0 - (var_l / (var_l + var_r))
                 weights[cluster_l] *= alpha
-                weights[cluster_r] *= (1.0 - alpha)
+                weights[cluster_r] *= 1.0 - alpha
 
         return weights.values
 
@@ -85,11 +88,18 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
             try:
                 port = rp.HCPortfolio(returns=returns)
                 model = "HRP" if self.method == "HRP" else "HERC"
-                w_df = port.optimization(model=model, rm="MV", rf=self.risk_free_rate, linkage=self.linkage_method)
+                w_df = port.optimization(
+                    model=model,
+                    rm="MV",
+                    rf=self.risk_free_rate,
+                    linkage=self.linkage_method,
+                )
                 if w_df is not None:
                     w = w_df.values.flatten()
                     w_dict = dict(zip(tickers, w))
-                    stats = self.compute_summary_stats(w, returns.mean(), returns.cov(), fee_drag=total_drag)
+                    stats = self.compute_summary_stats(
+                        w, returns.mean(), returns.cov(), fee_drag=total_drag
+                    )
                     return OptimizationResult(
                         method=f"Hierarchical_{self.method}_Riskfolio",
                         weights=w_dict,
@@ -99,11 +109,21 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
                         status="Optimal",
                     )
             except Exception as e:
-                print(f"Riskfolio HCPortfolio failed, using scipy linkage fallback: {e}")
+                print(
+                    f"Riskfolio HCPortfolio failed, using scipy linkage fallback: {e}"
+                )
 
         # Fallback linkage calculation
-        cov_df = pd.DataFrame(custom_cov, index=tickers, columns=tickers) if custom_cov is not None else returns.cov()
-        corr_df = returns.corr() if custom_cov is None else cov_df / np.outer(np.sqrt(np.diag(cov_df)), np.sqrt(np.diag(cov_df)))
+        cov_df = (
+            pd.DataFrame(custom_cov, index=tickers, columns=tickers)
+            if custom_cov is not None
+            else returns.cov()
+        )
+        corr_df = (
+            returns.corr()
+            if custom_cov is None
+            else cov_df / np.outer(np.sqrt(np.diag(cov_df)), np.sqrt(np.diag(cov_df)))
+        )
 
         # Distance matrix d_ij = sqrt(0.5 * (1 - rho_ij))
         dist_matrix = np.sqrt(np.clip(0.5 * (1.0 - corr_df.values), 0, 1))
@@ -120,7 +140,9 @@ class HierarchicalRiskParityOptimizer(BasePortfolioOptimizer):
             w[orig_i] = w_ordered[idx]
 
         w_dict = dict(zip(tickers, w))
-        stats = self.compute_summary_stats(w, returns.mean(), cov_df, fee_drag=total_drag)
+        stats = self.compute_summary_stats(
+            w, returns.mean(), cov_df, fee_drag=total_drag
+        )
 
         return OptimizationResult(
             method=f"Hierarchical_{self.method}",
@@ -176,4 +198,3 @@ if __name__ == "__main__":
     print(f"Volatility: {res_herc.volatility:.4f}")
     print(f"Sharpe Ratio: {res_herc.sharpe_ratio:.4f}")
     print("Weights:", {k: round(v, 4) for k, v in res_herc.weights.items()})
-

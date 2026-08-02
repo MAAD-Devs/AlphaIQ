@@ -2,7 +2,8 @@
 Fama-French 5-Factor regression engine and Marcenko-Pastur random matrix covariance denoising.
 """
 
-from typing import Dict, Tuple, Optional, Union
+from typing import Dict, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
