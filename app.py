@@ -34,12 +34,26 @@ st.set_page_config(
 inject_custom_css()
 init_session_state()
 
+# --- Auth Gate ---
+if not st.user.is_logged_in:
+    st.markdown(
+        '<div class="gradient-header">Quantitative Portfolio Optimizer</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("Please sign in to continue.")
+    if st.button("Sign in with Google"):
+        st.login("google")
+    st.stop()
+
 # Ensure market data is loaded
 if st.session_state.returns_df.empty:
     fetch_and_cache_market_data()
 
 # --- Sidebar Controls ---
 st.sidebar.title("📈 Portfolio Engine")
+st.sidebar.markdown(f"Signed in as **{st.user.email}**")
+if st.sidebar.button("Sign out"):
+    st.logout()
 st.sidebar.markdown("---")
 
 # Portfolio Template Preset Picker

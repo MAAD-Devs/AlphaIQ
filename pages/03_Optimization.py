@@ -26,6 +26,7 @@ from utils.state_management import (
     fetch_and_cache_market_data,
     init_session_state,
     inject_custom_css,
+    require_auth,
 )
 
 st.set_page_config(
@@ -33,6 +34,7 @@ st.set_page_config(
 )
 inject_custom_css()
 init_session_state()
+require_auth()
 
 st.markdown(
     '<div class="gradient-header">03 Portfolio Optimization Engine</div>',
