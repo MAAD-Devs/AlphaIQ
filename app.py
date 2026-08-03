@@ -21,6 +21,7 @@ from utils.state_management import (
     inject_custom_css,
     load_portfolio_template,
     persist_portfolio,
+    render_sidebar,
 )
 
 # Configure Streamlit page
@@ -51,48 +52,8 @@ if st.session_state.returns_df.empty:
     fetch_and_cache_market_data()
 
 # --- Sidebar Controls ---
-st.sidebar.title("Portfolio Engine")
-st.sidebar.markdown(f"Signed in as **{st.user.email}**")
-if st.sidebar.button("Sign out"):
-    st.logout()
-st.sidebar.markdown("---")
+render_sidebar()
 
-# Portfolio Template Preset Picker
-template_choice = st.sidebar.selectbox(
-    "Load Preset Portfolio Template",
-    options=["Custom / Current"] + list(PRESET_TEMPLATES.keys()),
-    index=0,
-)
-
-if template_choice != "Custom / Current":
-    if st.sidebar.button("Apply Selected Template"):
-        st.session_state.portfolio = load_portfolio_template(template_choice)
-        persist_portfolio(st.session_state.portfolio)
-        fetch_and_cache_market_data()
-        st.sidebar.success(f"Loaded '{template_choice}' template!")
-        st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("System Parameters")
-st.session_state.risk_free_rate = st.sidebar.number_input(
-    "Risk-Free Rate (Annualized)",
-    min_value=0.0,
-    max_value=0.15,
-    value=st.session_state.risk_free_rate,
-    step=0.005,
-    format="%.3f",
-)
-
-st.session_state.lookback_period = st.sidebar.selectbox(
-    "Market Data Lookback",
-    options=["1y", "3y", "5y", "10y"],
-    index=1,
-)
-
-if st.sidebar.button("Refresh Market Data"):
-    fetch_and_cache_market_data()
-    st.sidebar.success("Market data refreshed!")
-    st.rerun()
 
 # --- Header Section ---
 st.markdown(

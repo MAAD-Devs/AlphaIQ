@@ -32,6 +32,7 @@ from utils.state_management import (
     init_session_state,
     inject_custom_css,
     require_auth,
+    render_sidebar,
 )
 
 st.set_page_config(
@@ -40,9 +41,11 @@ st.set_page_config(
 inject_custom_css()
 init_session_state()
 require_auth()
+render_sidebar()
+
 
 st.markdown(
-    '<div class="gradient-header">02 Quantitative Risk & Diagnostics</div>',
+    '<div class="gradient-header">Quantitative Risk & Diagnostics</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
