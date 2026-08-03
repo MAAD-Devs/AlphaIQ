@@ -25,6 +25,7 @@ from utils.state_management import (
     load_portfolio_template,
     persist_portfolio,
     require_auth,
+    render_sidebar,
 )
 
 st.set_page_config(
@@ -33,9 +34,11 @@ st.set_page_config(
 inject_custom_css()
 init_session_state()
 require_auth()
+render_sidebar()
+
 
 st.markdown(
-    '<div class="gradient-header">01 Portfolio Entry & Data Ingestion</div>',
+    '<div class="gradient-header">Portfolio Entry & Data Ingestion</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
