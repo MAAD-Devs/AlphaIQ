@@ -65,7 +65,7 @@ returns_df = returns_df[portfolio_tickers]
 col_controls, col_results = st.columns([1, 2])
 
 with col_controls:
-    st.subheader("⚙️ Solver Configuration")
+    st.subheader("Solver Configuration")
 
     solver_type = st.selectbox(
         "Select Optimization Model",
@@ -84,7 +84,7 @@ with col_controls:
     )
 
     st.markdown("---")
-    st.subheader("🔒 Constraints & Parameters")
+    st.subheader("Constraints & Parameters")
 
     min_weight = st.slider(
         "Min Asset Weight",
@@ -109,7 +109,7 @@ with col_controls:
     kelly_frac = 0.5
 
     if "Black-Litterman" in solver_type:
-        st.info("💡 Black-Litterman View Matrix Settings")
+        st.info("Black-Litterman View Matrix Settings")
         v_asset1 = st.selectbox("Asset View Ticker", options=portfolio_tickers, index=0)
         v_asset2 = st.selectbox(
             "Outperformed Ticker",
@@ -141,7 +141,7 @@ with col_controls:
             step=0.1,
         )
 
-    btn_run = st.button("🚀 Run Optimization", width="stretch")
+    btn_run = st.button("Run Optimization", width="stretch")
 
 # Handle Optimization Execution
 if btn_run or st.session_state.optimization_result is None:
@@ -210,7 +210,7 @@ res = st.session_state.optimization_result
 
 # --- Results Output Section ---
 with col_results:
-    st.subheader(f"📊 Optimization Output: {res.method}")
+    st.subheader(f"Optimization Output: {res.method}")
 
     # Top Ratios Row
     r1, r2, r3, r4 = st.columns(4)
@@ -284,7 +284,7 @@ with col_results:
             df_comp.set_index("Ticker")[["Current Weight (%)", "Optimized Weight (%)"]]
         )
 
-    st.subheader("📋 Detailed Rebalancing Trade Schedule")
+    st.subheader("Detailed Rebalancing Trade Schedule")
     st.dataframe(
         df_comp.style.format(
             {
@@ -299,7 +299,7 @@ with col_results:
     )
 
     if st.button(
-        "✅ Apply Rebalanced Weights to Active Portfolio",
+        "Apply Rebalanced Weights to Active Portfolio",
         type="primary",
         width="stretch",
     ):
