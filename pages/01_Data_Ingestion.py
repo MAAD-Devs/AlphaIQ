@@ -106,7 +106,7 @@ with tab_entry:
 
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        if st.button("💾 Save Portfolio Changes"):
+        if st.button("Save Portfolio Changes"):
             new_asset_values = {}
             for idx, row in edited_df.iterrows():
                 t = str(row["Ticker"]).strip().upper()

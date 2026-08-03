@@ -78,7 +78,7 @@ port_series = pd.Series(
 )
 
 # --- Top  Performance Ratios ---
-st.subheader("📌 Executive Risk & Return Metrics")
+st.subheader("Executive Risk & Return Metrics")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -104,10 +104,10 @@ st.markdown("---")
 # --- Tab Layout ---
 tab_breakdown, tab_tailrisk, tab_correlation, tab_denoise = st.tabs(
     [
-        "📈 Asset-Level Breakdown",
-        "⚠️ Tail Risk & Drawdowns",
-        "🔥 Asset Correlation Matrix",
-        "🧠 Random Matrix Denoising",
+        "Asset-Level Breakdown",
+        "Tail Risk & Drawdowns",
+        "Asset Correlation Matrix",
+        "Random Matrix Denoising",
     ]
 )
 
