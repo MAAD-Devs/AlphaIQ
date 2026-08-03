@@ -16,7 +16,7 @@ from utils.state_management import (
 )
 
 st.set_page_config(
-    page_title="04 Backtesting - Strategy Performance", page_icon="📈", layout="wide"
+    page_title="Backtesting - Strategy Performance", page_icon="📈", layout="wide"
 )
 inject_custom_css()
 init_session_state()
@@ -49,7 +49,7 @@ if not portfolio_tickers:
 returns_df = returns_df[portfolio_tickers]
 
 # --- Sidebar / Backtest Controls ---
-st.sidebar.subheader("⚙️ Backtest Parameters")
+st.sidebar.subheader("Backtest Parameters")
 initial_capital = st.sidebar.number_input(
     "Initial Investment ($)",
     min_value=1000.0,
@@ -116,7 +116,7 @@ cum_growth = (1 + df_backtest).cumprod() * initial_capital
 
 # --- Visual Growth Chart ---
 st.subheader(
-    f"📈 Out-of-Sample Cumulative Growth (${initial_capital:,.0f} Initial Capital)"
+    f"Out-of-Sample Cumulative Growth (${initial_capital:,.0f} Initial Capital)"
 )
 
 try:
@@ -142,7 +142,7 @@ except ImportError:
 st.markdown("---")
 
 # --- Performance Ratios Comparison Table ---
-st.subheader("📊 Strategy Performance Summary Table")
+st.subheader("Strategy Performance Summary Table")
 
 perf_rows = []
 for col in df_backtest.columns:
