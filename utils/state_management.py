@@ -235,3 +235,57 @@ def fetch_and_cache_market_data(
         np.random.normal(0.0005, 0.012, size=num_days), index=dates, name="Benchmark"
     )
     return True
+
+
+def render_sidebar():
+    """Renders the common sidebar elements across all pages."""
+    st.sidebar.title("Portfolio Engine")
+    if hasattr(st.user, "is_logged_in") and st.user.is_logged_in:
+        st.sidebar.markdown(f"Signed in as **{st.user.email}**")
+        if st.sidebar.button("Sign out"):
+            st.logout()
+    st.sidebar.markdown("---")
+
+    # Portfolio Template Preset Picker
+    template_choice = st.sidebar.selectbox(
+        "Load Preset Portfolio Template",
+        options=["Custom / Current"] + list(PRESET_TEMPLATES.keys()),
+        index=0,
+    )
+
+    if template_choice != "Custom / Current":
+        if st.sidebar.button("Apply Selected Template"):
+            st.session_state.portfolio = load_portfolio_template(template_choice)
+            persist_portfolio(st.session_state.portfolio)
+            fetch_and_cache_market_data()
+            st.sidebar.success(f"Loaded '{template_choice}' template!")
+            st.rerun()
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("System Parameters")
+
+    st.session_state.risk_free_rate = st.sidebar.number_input(
+        "Risk-Free Rate (Annualized)",
+        min_value=0.0,
+        max_value=0.15,
+        value=st.session_state.risk_free_rate,
+        step=0.005,
+        format="%.3f",
+    )
+
+    lookback_options = ["1y", "3y", "5y", "10y"]
+    lookback_idx = 1
+    if st.session_state.lookback_period in lookback_options:
+        lookback_idx = lookback_options.index(st.session_state.lookback_period)
+
+    st.session_state.lookback_period = st.sidebar.selectbox(
+        "Market Data Lookback",
+        options=lookback_options,
+        index=lookback_idx,
+    )
+
+    if st.sidebar.button("Refresh Market Data"):
+        fetch_and_cache_market_data()
+        st.sidebar.success("Market data refreshed!")
+        st.rerun()
+
