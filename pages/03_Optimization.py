@@ -31,7 +31,7 @@ from utils.state_management import (
 )
 
 st.set_page_config(
-    page_title="03 Optimization - Portfolio Solvers", page_icon="🎯", layout="wide"
+    page_title="Optimization - Portfolio Solvers", page_icon="🎯", layout="wide"
 )
 inject_custom_css()
 init_session_state()

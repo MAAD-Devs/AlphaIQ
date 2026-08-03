@@ -16,7 +16,7 @@ from utils.state_management import (
 )
 
 st.set_page_config(
-    page_title="04 Backtesting - Strategy Performance", page_icon="📈", layout="wide"
+    page_title="Backtesting - Strategy Performance", page_icon="📈", layout="wide"
 )
 inject_custom_css()
 init_session_state()

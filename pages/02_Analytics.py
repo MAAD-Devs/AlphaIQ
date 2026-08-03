@@ -35,7 +35,7 @@ from utils.state_management import (
 )
 
 st.set_page_config(
-    page_title="02 Analytics - Risk Diagnostics", page_icon="📊", layout="wide"
+    page_title="Analytics - Risk Diagnostics", page_icon="📊", layout="wide"
 )
 inject_custom_css()
 init_session_state()
