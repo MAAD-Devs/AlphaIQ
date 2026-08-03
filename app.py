@@ -51,7 +51,7 @@ if st.session_state.returns_df.empty:
     fetch_and_cache_market_data()
 
 # --- Sidebar Controls ---
-st.sidebar.title("📈 Portfolio Engine")
+st.sidebar.title("Portfolio Engine")
 st.sidebar.markdown(f"Signed in as **{st.user.email}**")
 if st.sidebar.button("Sign out"):
     st.logout()
@@ -89,7 +89,7 @@ st.session_state.lookback_period = st.sidebar.selectbox(
     index=1,
 )
 
-if st.sidebar.button("🔄 Refresh Market Data"):
+if st.sidebar.button("Refresh Market Data"):
     fetch_and_cache_market_data()
     st.sidebar.success("Market data refreshed!")
     st.rerun()
@@ -150,7 +150,7 @@ st.markdown("---")
 left_col, right_col = st.columns([3, 2])
 
 with left_col:
-    st.subheader("📊 Portfolio Asset Allocation Breakdown")
+    st.subheader("Portfolio Asset Allocation Breakdown")
 
     weights = portfolio.weights
     df_weights = pd.DataFrame(
@@ -207,10 +207,10 @@ with right_col:
         """
         Use the multipage navigation in the sidebar or jump directly to key workflows:
 
-        * **📄 01 Data Ingestion & Entry**: Update portfolio holdings, edit ticker quantities, set fee drag parameters, and review live price data quality.
-        * **📊 02 Quantitative Analytics**: Inspect Sharpe/Sortino ratios, tail-risk metrics (VaR/CVaR/Max Drawdown), factor models, and fixed-income duration metrics.
-        * **🎯 03 Portfolio Optimization**: Execute Mean-Variance, Risk Parity, Black-Litterman, HRP, Kelly Criterion, or CVaR/CDaR minimization with linear constraints.
-        * **📈 04 Out-of-Sample Backtesting**: Test strategy rebalancing frequencies and benchmark relative performance across historical regimes.
+        * **Data Ingestion & Entry**: Update portfolio holdings, edit ticker quantities, set fee drag parameters, and review live price data quality.
+        * **Quantitative Analytics**: Inspect Sharpe/Sortino ratios, tail-risk metrics (VaR/CVaR/Max Drawdown), factor models, and fixed-income duration metrics.
+        * **Portfolio Optimization**: Execute Mean-Variance, Risk Parity, Black-Litterman, HRP, Kelly Criterion, or CVaR/CDaR minimization with linear constraints.
+        * **Out-of-Sample Backtesting**: Test strategy rebalancing frequencies and benchmark relative performance across historical regimes.
         """
     )
 
